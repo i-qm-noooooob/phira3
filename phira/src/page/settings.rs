@@ -842,7 +842,39 @@ impl AudioList {
     }
 }
 
+fn quality_preset_index(config: &prpr::config::Config) -> Option<usize> {
+    match (config.particle, config.sample_count, config.fxaa) {
+        (false, 1, false) => Some(0),
+        (true, 1, false) => Some(1),
+        (true, 2, false) => Some(2),
+        _ => None,
+    }
+}
+
+fn apply_quality_preset(config: &mut prpr::config::Config, index: usize) {
+    match index {
+        0 => {
+            config.particle = false;
+            config.sample_count = 1;
+            config.fxaa = false;
+        }
+        1 => {
+            config.particle = true;
+            config.sample_count = 1;
+            config.fxaa = false;
+        }
+        _ => {
+            config.particle = true;
+            // Keep the high preset at 2x MSAA to avoid the memory/bandwidth
+            // cost of 4x MSAA on the project's 32-bit Android target.
+            config.sample_count = 2;
+            config.fxaa = false;
+        }
+    }
+}
+
 struct ChartList {
+    quality_preset_btn: DRectButton,
     show_acc_btn: DRectButton,
     show_fps_btn: DRectButton,
     fps_position_btn: DRectButton,
@@ -864,6 +896,7 @@ struct ChartList {
 impl ChartList {
     pub fn new() -> Self {
         Self {
+            quality_preset_btn: DRectButton::new(),
             show_acc_btn: DRectButton::new(),
             show_fps_btn: DRectButton::new(),
             fps_position_btn: DRectButton::new(),
@@ -890,6 +923,11 @@ impl ChartList {
     pub fn touch(&mut self, touch: &Touch, t: f32) -> Result<Option<bool>> {
         let data = get_data_mut();
         let config = &mut data.config;
+        if self.quality_preset_btn.touch(touch, t) {
+            let next = quality_preset_index(config).map_or(0, |index| (index + 1) % 3);
+            apply_quality_preset(config, next);
+            return Ok(Some(true));
+        }
         if self.show_acc_btn.touch(touch, t) {
             config.show_acc ^= true;
             return Ok(Some(true));
@@ -981,6 +1019,16 @@ impl ChartList {
 
         let data = get_data();
         let config = &data.config;
+        item! {
+            render_title(ui, tl!("item-quality-preset"), Some(tl!("item-quality-preset-sub")));
+            let label = match quality_preset_index(config) {
+                Some(0) => tl!("quality-preset-low"),
+                Some(1) => tl!("quality-preset-standard"),
+                Some(2) => tl!("quality-preset-high"),
+                _ => tl!("quality-preset-custom"),
+            };
+            self.quality_preset_btn.render_text(ui, rr, t, label, 0.5, false);
+        }
         item! {
             render_title(ui, tl!("item-show-acc"), None);
             render_switch(ui, rr, t, &mut self.show_acc_btn, config.show_acc);
@@ -1323,3 +1371,29 @@ mod tests {
         assert!(!metadata.contains("GIT_HASH"));
     }
 }
+
+#[cfg(test)]
+mod quality_preset_tests {
+    use super::{apply_quality_preset, quality_preset_index};
+    use prpr::config::Config;
+
+    #[test]
+    fn quality_presets_apply_expected_settings() {
+        let mut config = Config::default();
+        for (index, particle, samples) in [(0, false, 1), (1, true, 1), (2, true, 2)] {
+            apply_quality_preset(&mut config, index);
+            assert_eq!(config.particle, particle);
+            assert_eq!(config.sample_count, samples);
+            assert!(!config.fxaa);
+            assert_eq!(quality_preset_index(&config), Some(index));
+        }
+    }
+
+    #[test]
+    fn custom_quality_settings_are_not_misreported_as_a_preset() {
+        let mut config = Config::default();
+        config.fxaa = true;
+        assert_eq!(quality_preset_index(&config), None);
+    }
+}
+
