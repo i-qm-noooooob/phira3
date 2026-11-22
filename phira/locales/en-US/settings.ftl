@@ -176,3 +176,13 @@ replay-library-delete = Delete
 replay-library-export = Export
 replay-library-delete-title = Delete replay
 replay-library-delete-confirm = Delete this replay from the local library? This cannot be undone.
+
+replay-library-match = Match chart
+replay-library-matching = Checking local charts…
+replay-library-match-verified = Chart and audio fingerprints verified
+replay-library-match-unverified = Legacy chart matched; identity could not be verified
+replay-library-match-missing = No matching local chart found
+replay-library-match-version = Chart version does not match this replay
+replay-library-match-audio = Chart matched, but the audio file is different
+replay-library-match-server = Replay belongs to a different Phira server
+replay-library-match-failed = Chart matching failed
