@@ -123,8 +123,8 @@ impl Page for ReplayLibraryPage {
                 let line_h = 0.075;
                 let available = ((area.bottom() - y - 0.02) / line_h).floor().max(0.) as usize;
                 for item in self.items.iter().take(available) {
-                    let title = item.chart_name.as_deref().unwrap_or(tl!("replay-library-untitled"));
-                    let player = item.player.as_deref().unwrap_or(tl!("replay-library-unknown-player"));
+                    let title = item.chart_name.clone().unwrap_or_else(|| tl!("replay-library-untitled").into_owned());
+                    let player = item.player.clone().unwrap_or_else(|| tl!("replay-library-unknown-player").into_owned());
                     ui.text(format!("{title} — {player}"))
                         .pos(area.x + 0.025, y)
                         .size(0.31)
