@@ -39,3 +39,17 @@ The integration branch is based on the official Phira tree. Keep `main` unchange
 - Latest anti-aliasing validation: CI run [45008490282](https://github.com/i-qm-noooooob/phira3/actions/runs/45008490282) passed Tests, Format, Clippy Linux, Clippy macOS, and Clippy iOS (5/5).
 - Android APK build, ARMv7 native dependency validation, and physical-device testing have not yet been completed.
 - Performance-settings review found Pro-only shader and font-atlas optimizations require their full rendering/platform support; these are not being exposed as settings until that support is ported and validated.
+
+
+## Replay feature audit (next major port)
+
+The Pro replay implementation is a subsystem, not a standalone screen. The source inventory includes `phira/src/replay.rs`, `replay/capture.rs`, `replay/library.rs`, `replay/transport.rs`, `replay/analysis/*`, `page/replays.rs`, `page/replay_analysis.rs`, and replay scenes/locales. The regular branch currently has only the server record model at `phira/src/client/model/record.rs`; it does not contain the Pro replay subsystem.
+
+Important compatibility constraints from the Pro replay design:
+- Replay import must remain local-only. Imported records must not change PB, RKS, play count, official score history, or any upload queue.
+- Playback must consume recorded judgement events; it must not rerun judgement using the viewer's current settings or write scores to the official service.
+- Keep bounded parsing and validation. The documented format uses a 128 MiB input cap and supports multiple legacy versions; do not implement a permissive unbounded importer.
+- Preserve old formats and distinguish missing event data from a valid zero-score replay. Never fabricate judgement or touch events from a final score.
+- Replay capture/playback must be checked against the official game clock, pause/retry/end states, touch lifecycle, and chart/audio identity before release.
+
+The audit has identified the subsystem boundaries and safety constraints. Porting has not started; implementation should proceed in small slices with isolated tests before adding UI entry points.
