@@ -1,0 +1,149 @@
+name: Phira Pro Port - Background Audit
+
+on:
+  schedule:
+    - cron: '0 12 * * *' # Daily at 19:00 Asia/Ho_Chi_Minh
+  workflow_dispatch:
+  push:
+    branches:
+      - integration/phira-pro-port
+    paths:
+      - 'phira/**'
+      - 'prpr/**'
+      - 'prpr-avc/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
+      - 'docs/PHIRA_PRO_PORT_PLAN.md'
+      - '.github/workflows/phira-pro-background-audit.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phira-pro-background-audit
+  cancel-in-progress: true
+
+jobs:
+  inventory:
+    name: Compare regular Phira with Pro reference
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: integration/phira-pro-port
+          fetch-depth: 1
+
+      - name: Fetch Pro reference tree
+        run: |
+          git clone --depth 1 --filter=blob:none --no-checkout \
+            https://github.com/i-qm-noooooob/phira-pro-build.git ../phira-pro-reference
+          git -C ../phira-pro-reference checkout --detach
+
+      - name: Generate complete tracked-file inventory
+        run: |
+          python3 - <<'PY'
+          import csv
+          import subprocess
+          from pathlib import Path
+
+          def tracked(repo):
+              raw = subprocess.check_output(
+                  ["git", "-C", str(repo), "ls-tree", "-r", "-z", "--full-tree", "HEAD"]
+              )
+              result = {}
+              for item in raw.split(b"\\0"):
+                  if not item:
+                      continue
+                  meta, path = item.split(b"\\t", 1)
+                  mode, kind, blob = meta.decode().split()
+                  if kind == "blob":
+                      result[path.decode("utf-8", "replace")] = blob
+              return result
+
+          regular = tracked(Path("."))
+          pro = tracked(Path("../phira-pro-reference"))
+          rows = []
+          for path in sorted(set(regular) | set(pro)):
+              if path not in regular:
+                  status = "PRO_ONLY"
+              elif path not in pro:
+                  status = "REGULAR_ONLY"
+              elif regular[path] == pro[path]:
+                  status = "IDENTICAL"
+              else:
+                  status = "CHANGED_BOTH"
+              rows.append((status, path, regular.get(path, b"").decode(),
+                           pro.get(path, b"").decode()))
+
+          counts = {key: sum(row[0] == key for row in rows)
+                    for key in ("PRO_ONLY", "REGULAR_ONLY", "CHANGED_BOTH", "IDENTICAL")}
+          with open("phira-pro-file-inventory.csv", "w", newline="", encoding="utf-8") as f:
+              writer = csv.writer(f)
+              writer.writerow(["status", "path", "integration_blob", "pro_blob"])
+              writer.writerows(rows)
+
+          with open("phira-pro-audit.md", "w", encoding="utf-8") as f:
+              f.write("# Phira Pro background source audit\\n\\n")
+              f.write("This is a tracked-file inventory, not proof that a feature is ported. ")
+              f.write("Blob equality is used only to identify identical files.\\n\\n")
+              f.write("| Category | Files |\\n|---|---:|\\n")
+              for key, label in [
+                  ("PRO_ONLY", "Pro-only files"),
+                  ("CHANGED_BOTH", "Files changed in both trees"),
+                  ("IDENTICAL", "Identical files"),
+                  ("REGULAR_ONLY", "Regular-only files"),
+              ]:
+                  f.write(f"| {label} | {counts[key]} |\\n")
+              f.write(f"\\nTotal distinct paths: {len(rows)}\\n")
+              f.write("\\n## Pro-only paths\\n")
+              for status, path, _, _ in rows:
+                  if status == "PRO_ONLY":
+                      f.write(f"- `{path}`\\n")
+          print("Inventory totals:", counts, "total paths:", len(rows))
+          PY
+
+      - name: Publish inventory summary
+        if: always()
+        run: |
+          if [ -f phira-pro-audit.md ]; then
+            cat phira-pro-audit.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload inventory reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: phira-pro-source-audit
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            phira-pro-audit.md
+            phira-pro-file-inventory.csv
+
+  validation:
+    name: Rust format, tests and lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: integration/phira-pro-port
+
+      - name: Install Rust toolchain components
+        run: |
+          rustup component add rustfmt clippy
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Phira tests
+        run: cargo test --locked -p phira --no-fail-fast
+
+      - name: Run Clippy
+        run: cargo clippy --locked -p phira --all-targets
