@@ -30,7 +30,7 @@ use std::{
     fs::File,
     io::{BufReader, Read, Seek, SeekFrom},
     mem,
-    path::{Component, PathBuf},
+    path::{Component, Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc, Arc,
@@ -456,6 +456,17 @@ impl Scene for MainScene {
                             confirm_dialog(itl!("batch-import"), itl!("batch-import-confirm", "count" => count), self.batch_import_confirm.clone());
                         }
                     };
+                }
+                "_import_replay" => {
+                    match crate::replay::library::import_package(Path::new(&file)) {
+                        Err(err) => show_error(err.context("Failed to import replay")),
+                        Ok(imported) => {
+                            let count = imported.len();
+                            let added = imported.iter().filter(|(_, inserted)| *inserted).count();
+                            crate::page::replays::mark_dirty();
+                            show_message(format!("Imported {count} replay(s); {added} new")).ok();
+                        }
+                    }
                 }
                 "_import_respack" => {
                     let root = dir::respacks()?;
