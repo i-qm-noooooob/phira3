@@ -31,7 +31,8 @@ pub struct ReplayScene {
     playing: bool,
     judge_index: usize,
     touch_index: usize,
-    current_touches: HashMap<u64, Vec2>,
+    current_touches: HashMap<u64, (Vec2, usize)>,
+    next_touch: Vec<Option<usize>>, 
     play_button: DRectButton,
     back_button: DRectButton,
     backward_button: DRectButton,
@@ -109,6 +110,12 @@ impl ReplayScene {
             "Replay judgement indices or hold events do not match the selected chart"
         );
 
+        let mut next_touch = vec![None; tape.touches.len()];
+        let mut next_by_id = HashMap::new();
+        for (index, event) in tape.touches.iter().enumerate().rev() {
+            next_touch[index] = next_by_id.insert(event.id, index);
+        }
+
         Ok(Self {
             game,
             tape,
@@ -118,6 +125,7 @@ impl ReplayScene {
             judge_index: 0,
             touch_index: 0,
             current_touches: HashMap::new(),
+            next_touch,
             play_button: DRectButton::new(),
             back_button: DRectButton::new(),
             backward_button: DRectButton::new(),
@@ -175,9 +183,21 @@ impl ReplayScene {
             if event.phase >= 2 {
                 self.current_touches.remove(&event.id);
             } else {
-                self.current_touches.insert(event.id, vec2(event.x, event.y));
+                self.current_touches.insert(event.id, (vec2(event.x, event.y), self.touch_index - 1));
             }
         }
+    }
+
+    fn touch_position(&self, mut pos: Vec2, index: usize) -> Vec2 {
+        if let Some(next) = self.next_touch.get(index).copied().flatten() {
+            let a = self.tape.touches[index];
+            let b = self.tape.touches[next];
+            if b.phase != 0 && b.t > a.t {
+                let progress = ((self.current - a.t as f64) / (b.t - a.t) as f64).clamp(0., 1.) as f32;
+                pos = pos.lerp(vec2(b.x, b.y), progress);
+            }
+        }
+        pos
     }
 
     fn toggle_playback(&mut self) -> Result<()> {
@@ -290,7 +310,8 @@ impl Scene for ReplayScene {
             let mut touch_ui = Ui::new(ui.text_painter, Some(fitted));
             set_camera(&touch_ui.camera());
             let config = &self.game.res.config;
-            for pos in self.current_touches.values() {
+            for (pos, index) in self.current_touches.values() {
+                let pos = self.touch_position(*pos, *index);
                 touch_ui.fill_circle(
                     pos.x,
                     pos.y,
