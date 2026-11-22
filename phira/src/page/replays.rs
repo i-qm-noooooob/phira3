@@ -371,7 +371,7 @@ impl Page for ReplayLibraryPage {
 
             let search_y = button_y + 0.09;
             let search_rect = Rect::new(area.x + 0.025, search_y, area.w - 0.05, 0.065);
-            self.search_btn.render_text(ui, search_rect, t, if self.search.is_empty() { tl!("replay-library-search") } else { self.search.as_str() }, 0.28, false);
+            self.search_btn.render_text(ui, search_rect, t, if self.search.is_empty() { tl!("replay-library-search") } else { Cow::Borrowed(self.search.as_str()) }, 0.28, false);
             if !self.search.is_empty() {
                 let clear_rect = Rect::new(search_rect.right() - search_rect.h, search_rect.y, search_rect.h, search_rect.h);
                 ui.text("×").pos(clear_rect.center().x, clear_rect.center().y).anchor(0.5, 0.5).size(0.35).draw();
