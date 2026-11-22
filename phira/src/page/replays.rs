@@ -22,6 +22,18 @@ use std::{
 
 static DIRTY: AtomicBool = AtomicBool::new(false);
 
+fn replay_matches_search(item: &ReplayItem, query: &str) -> bool {
+    let query = query.trim().to_lowercase();
+    query.is_empty()
+        || [
+            item.chart_name.as_deref().unwrap_or_default(),
+            item.player.as_deref().unwrap_or_default(),
+            item.file.as_str(),
+        ]
+        .iter()
+        .any(|value| value.to_lowercase().contains(&query))
+}
+
 pub fn mark_dirty() {
     DIRTY.store(true, Ordering::Release);
 }
@@ -105,15 +117,11 @@ impl ReplayLibraryPage {
     }
 
     fn filtered_indices(&self) -> Vec<usize> {
-        let query = self.search.trim().to_lowercase();
-        self.items.iter().enumerate().filter_map(|(index, item)| {
-            let matches = query.is_empty() || [
-                item.chart_name.as_deref().unwrap_or_default(),
-                item.player.as_deref().unwrap_or_default(),
-                item.file.as_str(),
-            ].iter().any(|value| value.to_lowercase().contains(&query));
-            matches.then_some(index)
-        }).collect()
+        self.items
+            .iter()
+            .enumerate()
+            .filter_map(|(index, item)| replay_matches_search(item, &self.search).then_some(index))
+            .collect()
     }
 
     fn selected_item(&self) -> Option<&ReplayItem> {
@@ -506,5 +514,37 @@ impl Page for ReplayLibraryPage {
             }
         });
         Ok(())
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn item() -> ReplayItem {
+        ReplayItem {
+            file: "replay-abc123.phirarec".to_owned(),
+            version: 6,
+            size: 1024,
+            imported_at: 0,
+            keep: false,
+            local_path: None,
+            verified: false,
+            chart_name: Some("Freedom Dive".to_owned()),
+            player: Some("PlayerOne".to_owned()),
+            recorded_at: None,
+        }
+    }
+
+    #[test]
+    fn replay_search_matches_chart_player_and_filename_case_insensitively() {
+        let item = item();
+        assert!(replay_matches_search(&item, "freedom"));
+        assert!(replay_matches_search(&item, "PLAYERONE"));
+        assert!(replay_matches_search(&item, "ABC123"));
+        assert!(replay_matches_search(&item, "  dive  "));
+        assert!(replay_matches_search(&item, ""));
+        assert!(!replay_matches_search(&item, "unrelated"));
     }
 }
