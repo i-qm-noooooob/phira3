@@ -499,6 +499,13 @@ mod tests {
         set_keep_in(&root, &first.file, true).unwrap();
         assert!(read_index(&root).unwrap()[&first.file].keep);
 
+        bind_in(&root, &first.file, "download/42", true).unwrap();
+        let bound = list_in(&root).unwrap();
+        assert_eq!(bound[0].local_path.as_deref(), Some("download/42"));
+        assert!(bound[0].verified);
+        assert!(bind_in(&root, &first.file, "../outside", true).is_err());
+        assert!(bind_in(&root, &first.file, "/absolute/path", true).is_err());
+
         export_from(&root, &first.file, &output).unwrap();
         assert_eq!(fs::read(&output).unwrap(), sample());
 
