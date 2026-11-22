@@ -570,7 +570,6 @@ impl Page for ReplayLibraryPage {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
