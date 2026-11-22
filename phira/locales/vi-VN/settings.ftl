@@ -159,3 +159,11 @@ replay-library-kept = đã giữ
 replay-library-local = cục bộ
 replay-library-empty = Chưa có replay. Nhập tệp .phirarec, .phirar, .ppr hoặc gói ZIP.
 replay-library-more = replay khác chưa được hiển thị
+
+replay-library-keep = Giữ lại
+replay-library-unkeep = Bỏ giữ
+replay-library-select = Chọn replay
+replay-library-delete = Xóa
+replay-library-export = Xuất
+replay-library-delete-title = Xóa replay
+replay-library-delete-confirm = Xóa replay này khỏi thư viện cục bộ? Không thể hoàn tác.
