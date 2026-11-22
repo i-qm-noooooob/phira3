@@ -36,6 +36,14 @@ pub fn next_rate(current: f64) -> f64 {
     RATES[(index + 1) % RATES.len()] as f64
 }
 
+/// Convert a pointer position on the replay timeline into a bounded seek time.
+pub fn timeline_target(position: f32, left: f32, width: f32, duration: f64) -> Option<f64> {
+    if !position.is_finite() || !left.is_finite() || !width.is_finite() || !duration.is_finite() || width <= 0.0 || duration < 0.0 {
+        return None;
+    }
+    Some(((position - left) / width).clamp(0.0, 1.0) as f64 * duration)
+}
+
 /// Calculate the next A-B loop position while preserving overrun.
 pub fn loop_target(current: f64, a: Option<f64>, b: Option<f64>, enabled: bool) -> Option<f64> {
     let (a, b) = (a?, b?);
@@ -94,6 +102,15 @@ mod tests {
         assert!((next_rate(1.0) - 1.5).abs() < 1e-6);
         assert!((next_rate(3.0) - 0.1).abs() < 1e-6);
         assert!((next_rate(99.0) - 1.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn timeline_seeking_clamps_pointer_and_rejects_invalid_geometry() {
+        assert_eq!(timeline_target(25.0, 10.0, 100.0, 120.0), Some(18.0));
+        assert_eq!(timeline_target(-5.0, 0.0, 100.0, 120.0), Some(0.0));
+        assert_eq!(timeline_target(150.0, 0.0, 100.0, 120.0), Some(120.0));
+        assert_eq!(timeline_target(50.0, 0.0, 0.0, 120.0), None);
+        assert_eq!(timeline_target(f32::NAN, 0.0, 100.0, 120.0), None);
     }
 
     #[test]
