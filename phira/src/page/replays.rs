@@ -262,9 +262,7 @@ impl Page for ReplayLibraryPage {
             if self.play_task.is_none() && self.ready_scene.is_none() {
                 if let Some(file) = self.selected_item().map(|item| item.file.clone()) {
                     self.status = Some(tl!("replay-library-loading").into_owned());
-                    self.play_task = Some(Box::pin(async move {
-                        crate::scene::ReplayScene::new(file).await
-                    }));
+                    self.play_task = Some(Box::pin(async move { crate::scene::ReplayScene::new(file).await }));
                 }
             }
             return Ok(true);
@@ -278,7 +276,6 @@ impl Page for ReplayLibraryPage {
         }
         Ok(false)
     }
-
 
     fn next_scene(&mut self, _s: &mut SharedState) -> NextScene {
         self.ready_scene
