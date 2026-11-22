@@ -63,7 +63,7 @@ pub struct LoadingScene {
 }
 
 impl LoadingScene {
-    pub async fn load(fs: &mut dyn FileSystem, path: &str) -> Result<(SafeTexture, SafeTexture, Color)> {
+    pub async fn load(fs: &mut dyn FileSystem, path: &str, blur_amount: f32) -> Result<(SafeTexture, SafeTexture, Color)> {
         let image = image::load_from_memory(&fs.load_file(path).await?).context("Failed to decode image")?;
         let (w, h) = (image.width(), image.height());
         let size = w as usize * h as usize;
@@ -71,7 +71,15 @@ impl LoadingScene {
         let mut blurred_rgb = image.to_rgb8();
         let color = color_thief::get_palette(&blurred_rgb, color_thief::ColorFormat::Rgb, 10, 2)?[0];
         let mut vec = unsafe { Vec::from_raw_parts(std::mem::transmute::<*mut u8, *mut [u8; 3]>(blurred_rgb.as_mut_ptr()), size, size) };
-        fastblur::gaussian_blur(&mut vec, w as _, h as _, 50.);
+        let amount = if blur_amount.is_finite() { blur_amount.clamp(0., 1.) } else { 0.5 };
+        let radius = if amount <= 0.5 {
+            amount * 100.
+        } else {
+            50. + (amount - 0.5) * 2. * (w.min(h) as f32 * 0.5).max(50.)
+        };
+        if radius > 0. {
+            fastblur::gaussian_blur(&mut vec, w as _, h as _, radius);
+        }
         std::mem::forget(vec);
         let mut blurred = Vec::with_capacity(size * 4);
         for input in blurred_rgb.chunks_exact(3) {
