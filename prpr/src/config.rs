@@ -86,6 +86,10 @@ pub struct Config {
     pub fps_position: u8,
     /// Gameplay background blur strength (0 = sharp, 0.5 = original blur).
     pub gameplay_background_blur: f32,
+    /// Use the configured gameplay background dim instead of the chart metadata value.
+    pub fixed_background: bool,
+    /// Gameplay background dim, clamped to 0..=1 when fixed_background is enabled.
+    pub background_dim: f32,
     pub show_avg_fps: bool,
     pub speed: f32,
     pub touch_debug: bool,
@@ -137,6 +141,8 @@ impl Default for Config {
             show_perfect_combo: false,
             fps_position: 0,
             gameplay_background_blur: 0.5,
+            fixed_background: false,
+            background_dim: 0.6,
             show_avg_fps: false,
             speed: 1.,
             touch_debug: false,
