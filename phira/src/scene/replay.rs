@@ -6,8 +6,8 @@ prpr_l10n::tl_file!("settings");
 use crate::{
     replay::{
         library,
-        transport,
         storage::{ReplayChartRef, ReplayTape},
+        transport,
     },
     scene::fs_from_path,
 };
