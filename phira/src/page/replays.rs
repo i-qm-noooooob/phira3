@@ -1,3 +1,5 @@
+prpr_l10n::tl_file!("replays");
+
 use super::{Page, SharedState};
 use crate::{replay::library::{self, ReplayItem}, scene::request_file};
 use anyhow::Result;
@@ -46,7 +48,7 @@ impl ReplayLibraryPage {
 
 impl Page for ReplayLibraryPage {
     fn label(&self) -> Cow<'static, str> {
-        Cow::Borrowed("Replay Library")
+        tl!("replay-library-title")
     }
 
     fn update(&mut self, _s: &mut SharedState) -> Result<()> {
@@ -72,7 +74,7 @@ impl Page for ReplayLibraryPage {
         s.render_fader(ui, |ui| {
             let area = ui.content_rect().feather(-0.025);
             ui.fill_path(&area.rounded(0.02), semi_black(0.48));
-            ui.text("Replay Library")
+            ui.text(tl!("replay-library-title"))
                 .pos(area.x + 0.025, area.y + 0.025)
                 .size(0.55)
                 .draw();
@@ -83,7 +85,7 @@ impl Page for ReplayLibraryPage {
                 ui,
                 Rect::new(area.x + 0.025, button_y, button_w, 0.075),
                 s.t,
-                "Import replay / ZIP",
+                tl!("replay-library-import"),
                 0.34,
                 false,
             );
@@ -91,28 +93,28 @@ impl Page for ReplayLibraryPage {
                 ui,
                 Rect::new(area.x + 0.055 + button_w, button_y, button_w, 0.075),
                 s.t,
-                "Refresh",
+                tl!("replay-library-refresh"),
                 0.34,
                 false,
             );
 
             let mut y = button_y + 0.105;
             if let Some(error) = &self.error {
-                ui.text(format!("Library error: {error}"))
+                ui.text(format!("{}: {error}", tl!("replay-library-error")))
                     .pos(area.x + 0.025, y)
                     .size(0.3)
                     .max_width(area.w - 0.05)
                     .draw();
                 y += 0.08;
             }
-            ui.text(format!("{} replay(s)", self.items.len()))
+            ui.text(format!("{} {}", self.items.len(), tl!("replay-library-count")))
                 .pos(area.x + 0.025, y)
                 .size(0.32)
                 .draw();
             y += 0.06;
 
             if self.items.is_empty() {
-                ui.text("No replay files yet. Import .phirarec, .phirar, .ppr or a ZIP package.")
+                ui.text(tl!("replay-library-empty"))
                     .pos(area.x + 0.025, y)
                     .size(0.31)
                     .max_width(area.w - 0.05)
@@ -121,14 +123,14 @@ impl Page for ReplayLibraryPage {
                 let line_h = 0.075;
                 let available = ((area.bottom() - y - 0.02) / line_h).floor().max(0.) as usize;
                 for item in self.items.iter().take(available) {
-                    let title = item.chart_name.as_deref().unwrap_or("Untitled replay");
-                    let player = item.player.as_deref().unwrap_or("Unknown player");
+                    let title = item.chart_name.as_deref().unwrap_or(tl!("replay-library-untitled"));
+                    let player = item.player.as_deref().unwrap_or(tl!("replay-library-unknown-player"));
                     ui.text(format!("{title} — {player}"))
                         .pos(area.x + 0.025, y)
                         .size(0.31)
                         .max_width(area.w - 0.05)
                         .draw();
-                    ui.text(format!("v{} · {} bytes · {}", item.version, item.size, if item.keep { "kept" } else { "local" }))
+                    ui.text(format!("v{} · {} bytes · {}", item.version, item.size, if item.keep { tl!("replay-library-kept") } else { tl!("replay-library-local") }))
                         .pos(area.x + 0.025, y + 0.033)
                         .size(0.24)
                         .color(Color::new(1., 1., 1., 0.65))
@@ -136,7 +138,7 @@ impl Page for ReplayLibraryPage {
                     y += line_h;
                 }
                 if self.items.len() > available {
-                    ui.text(format!("{} more item(s); list is currently truncated.", self.items.len() - available))
+                    ui.text(format!("{} {}", self.items.len() - available, tl!("replay-library-more")))
                         .pos(area.x + 0.025, area.bottom() - 0.04)
                         .size(0.25)
                         .draw();
