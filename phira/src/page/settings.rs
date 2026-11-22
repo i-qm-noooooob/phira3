@@ -195,10 +195,6 @@ impl Page for SettingsPage {
         Ok(())
     }
 
-    fn next_page(&mut self) -> NextPage {
-        self.list_chart.next_page.take().unwrap_or_default()
-    }
-
     fn touch(&mut self, touch: &Touch, s: &mut SharedState) -> Result<bool> {
         if self.list_debug.export_busy() {
             return Ok(true);
@@ -299,10 +295,11 @@ impl Page for SettingsPage {
     }
 
     fn next_page(&mut self) -> NextPage {
-        if matches!(self.tabs.selected(), SettingListType::Audio) {
-            return self.list_audio.next_page().unwrap_or_default();
+        match self.tabs.selected() {
+            SettingListType::Chart => self.list_chart.next_page.take().unwrap_or_default(),
+            SettingListType::Audio => self.list_audio.next_page().unwrap_or_default(),
+            _ => NextPage::None,
         }
-        NextPage::None
     }
 }
 
