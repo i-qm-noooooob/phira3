@@ -856,6 +856,7 @@ struct ChartList {
     size_slider: Slider,
     background_blur_slider: Slider,
     combo_text_btn: DRectButton,
+    show_perfect_combo_btn: DRectButton,
 }
 
 impl ChartList {
@@ -874,6 +875,7 @@ impl ChartList {
             size_slider: Slider::new(0.8..1.2, 0.005),
             background_blur_slider: Slider::new(0.0..1.0, 0.01),
             combo_text_btn: DRectButton::new(),
+            show_perfect_combo_btn: DRectButton::new(),
         }
     }
 
@@ -928,6 +930,10 @@ impl ChartList {
         }
         if let wt @ Some(_) = self.background_blur_slider.touch(touch, t, &mut config.gameplay_background_blur) {
             return Ok(wt);
+        }
+        if self.show_perfect_combo_btn.touch(touch, t) {
+            config.show_perfect_combo ^= true;
+            return Ok(Some(true));
         }
         if self.combo_text_btn.touch(touch, t) {
             request_input("combo_text", InputBox::new().default_text(&config.combo_text));
@@ -1010,6 +1016,10 @@ impl ChartList {
         item! {
             render_title(ui, Cow::Borrowed("Gameplay background blur"), Some(Cow::Borrowed("0 = sharp, 0.5 = default, 1 = strongest")));
             self.background_blur_slider.render(ui, rr, t, config.gameplay_background_blur, format!("{:.2}", config.gameplay_background_blur));
+        }
+        item! {
+            render_title(ui, Cow::Borrowed("Show perfect combo"), Some(Cow::Borrowed("Display PERFECT COMBO below the combo count; visual only")));
+            render_switch(ui, rr, t, &mut self.show_perfect_combo_btn, config.show_perfect_combo);
         }
         item! {
             render_title(ui, Cow::Borrowed("Combo text"), Some(Cow::Borrowed("Custom label below the combo count; max 16 characters")));
