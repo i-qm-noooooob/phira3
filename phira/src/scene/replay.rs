@@ -11,7 +11,7 @@ use crate::{
 use anyhow::{Context, Result};
 use macroquad::prelude::*;
 use prpr::{
-    config::{Config, Mods},
+    config::Mods,
     ext::BLACK_TEXTURE,
     judge::{JudgeStatus, Judgement},
     scene::{GameMode, GameScene, LoadingScene, NextScene, Scene},
@@ -83,7 +83,7 @@ impl ReplayScene {
             info.force_aspect_ratio = true;
         }
 
-        let (background, illustration) = match LoadingScene::load(fs.as_mut(), &info.illustration).await {
+        let (background, illustration) = match LoadingScene::load(fs.as_mut(), &info.illustration, config.gameplay_background_blur).await {
             Ok((illustration, background, _)) => (background, illustration),
             Err(_) => (BLACK_TEXTURE.clone(), BLACK_TEXTURE.clone()),
         };
