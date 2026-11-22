@@ -345,9 +345,11 @@ pub async fn audio_fingerprint(fs: &mut dyn prpr::fs::FileSystem, info: &prpr::i
 /// legacy tapes can only use their recorded local path or chart ID and are marked unverified.
 pub async fn match_chart(replay: &super::storage::ReplayTape, preferred: Option<&str>, candidates: &[String]) -> Result<Match> {
     let wrong_server = matches!(&replay.chart, Some(super::storage::ReplayChartRef::Id(_)))
-        && replay.meta.server.as_ref().is_some_and(|server| {
-            server.trim_end_matches('/') != crate::client::API_URL.trim_end_matches('/')
-        });
+        && replay
+            .meta
+            .server
+            .as_ref()
+            .is_some_and(|server| server.trim_end_matches('/') != crate::client::API_URL.trim_end_matches('/'));
     let original = match &replay.chart {
         Some(super::storage::ReplayChartRef::Local(path)) if candidates.contains(path) => Some(path.clone()),
         Some(super::storage::ReplayChartRef::Id(id)) if *id > 0 => Some(format!("download/{id}")),
@@ -382,9 +384,7 @@ pub async fn match_chart(replay: &super::storage::ReplayTape, preferred: Option<
                 }
                 return Ok(Match::Found(path, true));
             }
-            if matches!(&replay.chart, Some(super::storage::ReplayChartRef::Id(id)) if info.id == Some(*id))
-                || preferred == Some(path.as_str())
-            {
+            if matches!(&replay.chart, Some(super::storage::ReplayChartRef::Id(id)) if info.id == Some(*id)) || preferred == Some(path.as_str()) {
                 wrong_version = true;
             }
         } else if preferred == Some(path.as_str())
