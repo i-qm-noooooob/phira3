@@ -13,7 +13,7 @@ on:
       - 'rust-toolchain.toml'
       - '.github/workflows/build-android-arm64.yml'
   schedule:
-    - cron: '30 12 * * *' # Daily at 19:30 Asia/Ho_Chi_Minh
+    - cron: '30 12 * * *'
   workflow_dispatch:
 
 permissions:
@@ -48,11 +48,7 @@ jobs:
           SDKMANAGER="$(find "${ANDROID_HOME}/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null
-          "$SDKMANAGER" --install \
-            "platform-tools" \
-            "platforms;android-35" \
-            "build-tools;35.0.0" \
-            "ndk;${ANDROID_NDK_VERSION}"
+          "$SDKMANAGER" --install "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;${ANDROID_NDK_VERSION}"
           echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_ROOT=${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
 
@@ -69,57 +65,74 @@ jobs:
           test -s target/aarch64-linux-android/release/libphira.so
           "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf" -h target/aarch64-linux-android/release/libphira.so | grep -E 'Class:|Machine:'
 
-      - name: Download matching official Android shell
+      - name: Download and inspect official Android shell
         run: |
-          curl --fail --location --retry 3 \
-            "https://github.com/TeamFlos/phira/releases/download/${BASE_VERSION}/Phira-android-arm64-v8a-${BASE_VERSION}.apk" \
-            --output official-base.apk
+          curl --fail --location --retry 3 "https://github.com/TeamFlos/phira/releases/download/${BASE_VERSION}/Phira-android-arm64-v8a-${BASE_VERSION}.apk" --output official-base.apk
           unzip -t official-base.apk
           mkdir package
           unzip -q official-base.apk -d package
           test -s package/lib/arm64-v8a/libphira.so
+          "${ANDROID_HOME}/build-tools/35.0.0/aapt" dump badging official-base.apk | tee base-badging.txt
+          grep -q "package: name='org.flos.phira'" base-badging.txt
 
-      - name: Replace native library, align and re-sign APK
+      - name: Repack APK without duplicate entries
         run: |
           cp target/aarch64-linux-android/release/libphira.so package/lib/arm64-v8a/libphira.so
-          rm -rf package/META-INF
-          # Keep native libraries STORED (uncompressed); Android's native library
-          # loader requires correct ZIP alignment, including 16 KiB page alignment.
-          (cd package && zip -X -q -r ../unsigned.apk . -x 'lib/*')
-          (cd package && zip -X -0 -q -r ../unsigned.apk lib)
+          python3 - <<'PY'
+          import copy, zipfile
+          source = "official-base.apk"
+          output = "unsigned.apk"
+          with zipfile.ZipFile(source, "r") as src, zipfile.ZipFile(output, "w") as dst:
+              names = [i.filename for i in src.infolist()]
+              if len(names) != len(set(names)):
+                  raise SystemExit("Base APK contains duplicate ZIP paths")
+              for original in src.infolist():
+                  name = original.filename
+                  if name.upper().startswith("META-INF/"):
+                      continue
+                  info = copy.copy(original)
+                  if name.endswith(".so") and name.startswith("lib/"):
+                      info.compress_type = zipfile.ZIP_STORED
+                      with open("package/" + name, "rb") as f:
+                          payload = f.read()
+                  else:
+                      payload = src.read(name)
+                  dst.writestr(info, payload)
+          PY
           "${ANDROID_HOME}/build-tools/35.0.0/zipalign" -P 16 -f 4 unsigned.apk aligned.apk
           "${ANDROID_HOME}/build-tools/35.0.0/zipalign" -c -P 16 -v 4 aligned.apk
           python3 - <<'PY'
           import struct, zipfile
           apk = "aligned.apk"
           with zipfile.ZipFile(apk) as z:
-              libs = [i for i in z.infolist() if i.filename.startswith("lib/") and i.filename.endswith(".so")]
-              assert libs, "No native libraries found"
+              infos = z.infolist()
+              names = [i.filename for i in infos]
+              assert len(names) == len(set(names)), "Duplicate ZIP entries"
+              libs = [i for i in infos if i.filename.startswith("lib/") and i.filename.endswith(".so")]
+              assert {i.filename for i in libs} >= {"lib/arm64-v8a/libphira.so", "lib/arm64-v8a/libc++_shared.so"}
               for info in libs:
                   assert info.compress_type == zipfile.ZIP_STORED, f"{info.filename} is compressed"
                   with open(apk, "rb") as f:
                       f.seek(info.header_offset)
                       header = f.read(30)
                       name_len, extra_len = struct.unpack_from("<HH", header, 26)
-                      data_offset = info.header_offset + 30 + name_len + extra_len
-                  assert data_offset % 16384 == 0, f"{info.filename} is not 16 KiB aligned: {data_offset}"
-                  print(f"Verified {info.filename}: stored, offset={data_offset}, 16KiB aligned")
+                  offset = info.header_offset + 30 + name_len + extra_len
+                  assert offset % 16384 == 0, f"{info.filename} is not 16KiB aligned: {offset}"
+                  print(f"OK {info.filename}: {info.file_size} bytes, stored, 16KiB aligned")
           PY
-          keytool -genkeypair -noprompt \
-            -keystore phira3-ci.keystore \
-            -storepass phira3-ci-password \
-            -keypass phira3-ci-password \
-            -alias phira3-ci \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Phira3 CI,O=Phira3"
+          "${ANDROID_HOME}/build-tools/35.0.0/aapt" dump badging aligned.apk | tee apk-badging.txt
+          grep -q "package: name='org.flos.phira'" apk-badging.txt
+          grep -q "native-code: 'arm64-v8a'" apk-badging.txt
+          grep -q "sdkVersion:'22'" apk-badging.txt
+          keytool -genkeypair -noprompt -keystore phira3-ci.keystore -storepass phira3-ci-password -keypass phira3-ci-password -alias phira3-ci -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Phira3 CI,O=Phira3"
           "${ANDROID_HOME}/build-tools/35.0.0/apksigner" sign \
-            --ks phira3-ci.keystore \
-            --ks-key-alias phira3-ci \
-            --ks-pass pass:phira3-ci-password \
-            --key-pass pass:phira3-ci-password \
+            --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --v4-signing-enabled false \
+            --ks phira3-ci.keystore --ks-key-alias phira3-ci \
+            --ks-pass pass:phira3-ci-password --key-pass pass:phira3-ci-password \
             --out Phira3-arm64-v8a.apk aligned.apk
           "${ANDROID_HOME}/build-tools/35.0.0/apksigner" verify --verbose --print-certs Phira3-arm64-v8a.apk
           "${ANDROID_HOME}/build-tools/35.0.0/zipalign" -c -P 16 -v 4 Phira3-arm64-v8a.apk
+          "${ANDROID_HOME}/build-tools/35.0.0/aapt" dump badging Phira3-arm64-v8a.apk | tee final-badging.txt
           unzip -t Phira3-arm64-v8a.apk
           sha256sum Phira3-arm64-v8a.apk target/aarch64-linux-android/release/libphira.so | tee SHA256SUMS.txt
 
