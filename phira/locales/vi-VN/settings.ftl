@@ -104,3 +104,9 @@ item-ap-fc-indicator-sub = Dùng màu đường phán đoán để hiển thị 
 item-preferred-sample-rate = Sample rate ưu tiên
 preferred-sample-rate-default = Mặc định hệ thống
 item-audio-buffer-size = Kích thước bộ đệm audio
+
+item-touch-color = Màu điểm chạm
+item-touch-color-sub = Chạm để đổi màu; đặt lại để khôi phục màu mặc định.
+item-touch-alpha = Độ mờ điểm chạm
+item-touch-size = Kích thước điểm chạm
+color-reset = Đặt lại
