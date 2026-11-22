@@ -986,11 +986,11 @@ impl ChartList {
             render_switch(ui, rr, t, &mut self.show_acc_btn, config.show_acc);
         }
         item! {
-            render_title(ui, "Show FPS overlay", None);
+            render_title(ui, tl!("item-show-fps-overlay"), None);
             render_switch(ui, rr, t, &mut self.show_fps_btn, config.show_fps);
         }
         item! {
-            render_title(ui, "FPS position", Some(std::borrow::Cow::Borrowed("Tap to cycle through six positions")));
+            render_title(ui, tl!("item-fps-position"), Some(tl!("item-fps-position-sub")));
             let positions = ["Top center", "Bottom center", "Top left", "Top right", "Bottom left", "Bottom right"];
             self.fps_position_btn.render_text(ui, rr, t, positions[config.fps_position.min(5) as usize], 0.5, false);
         }
@@ -1027,7 +1027,7 @@ impl ChartList {
             self.size_slider.render(ui, rr, t, config.note_scale, format!("{:.3}", config.note_scale));
         }
         item! {
-            render_title(ui, Cow::Borrowed("Gameplay background blur"), Some(Cow::Borrowed("0 = sharp, 0.5 = default, 1 = strongest")));
+            render_title(ui, tl!("item-gameplay-background-blur"), Some(tl!("item-gameplay-background-blur-sub")));
             self.background_blur_slider.render(ui, rr, t, config.gameplay_background_blur, format!("{:.2}", config.gameplay_background_blur));
         }
         item! {
@@ -1041,11 +1041,11 @@ impl ChartList {
             }
         }
         item! {
-            render_title(ui, Cow::Borrowed("Show perfect combo"), Some(Cow::Borrowed("Display PERFECT COMBO below the combo count; visual only")));
+            render_title(ui, tl!("item-show-perfect-combo"), Some(tl!("item-show-perfect-combo-sub")));
             render_switch(ui, rr, t, &mut self.show_perfect_combo_btn, config.show_perfect_combo);
         }
         item! {
-            render_title(ui, Cow::Borrowed("Combo text"), Some(Cow::Borrowed("Custom label below the combo count; max 16 characters")));
+            render_title(ui, tl!("item-combo-text"), Some(tl!("item-combo-text-sub")));
             let label = if config.combo_text.is_empty() { "COMBO".to_owned() } else { config.combo_text.clone() };
             self.combo_text_btn.render_text(ui, rr, t, label, 0.5, false);
         }
