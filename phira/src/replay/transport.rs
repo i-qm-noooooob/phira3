@@ -30,6 +30,15 @@ pub fn frame_step(frames: &[f64], current: f64, delta: i32, end: f64) -> (f64, b
     }
 }
 
+/// Cycle the viewer playback rate without changing the replay's recorded chart speed.
+pub fn next_rate(current: f64) -> f64 {
+    let index = RATES
+        .iter()
+        .position(|rate| (*rate as f64 - current).abs() < 1e-6)
+        .unwrap_or(4);
+    RATES[(index + 1) % RATES.len()] as f64
+}
+
 /// Calculate the next A-B loop position while preserving overrun.
 pub fn loop_target(current: f64, a: Option<f64>, b: Option<f64>, enabled: bool) -> Option<f64> {
     let (a, b) = (a?, b?);
@@ -81,6 +90,13 @@ mod tests {
         }
         assert_eq!(frame_step(&[0.0, 0.0, 0.01, 0.01, 0.02], 0.01, 1, 2.0), (0.02, true));
         assert_eq!(frame_step(&[0.0, 0.0, 0.01, 0.01, 0.02], 0.01, -1, 2.0), (0.0, true));
+    }
+
+    #[test]
+    fn playback_rate_cycles_through_supported_values() {
+        assert_eq!(next_rate(1.0), 1.5);
+        assert_eq!(next_rate(3.0), 0.1);
+        assert_eq!(next_rate(99.0), 1.5);
     }
 
     #[test]
