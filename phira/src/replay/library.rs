@@ -6,7 +6,7 @@ use std::{
     collections::BTreeMap,
     fs,
     io::{Read, Write},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -24,6 +24,8 @@ fn root() -> Result<PathBuf> {
 struct IndexEntry {
     imported_at: i64,
     keep: bool,
+    local_path: Option<String>,
+    verified: bool,
 }
 
 type Index = BTreeMap<String, IndexEntry>;
@@ -36,6 +38,8 @@ pub struct ReplayItem {
     pub size: u64,
     pub imported_at: i64,
     pub keep: bool,
+    pub local_path: Option<String>,
+    pub verified: bool,
     pub chart_name: Option<String>,
     pub player: Option<String>,
     pub recorded_at: Option<i64>,
@@ -110,6 +114,8 @@ fn item_from_bytes(root: &Path, file: String, bytes: &[u8], index: &Index) -> Re
         size,
         imported_at,
         keep,
+        local_path: entry.and_then(|e| e.local_path.clone()),
+        verified: entry.is_some_and(|e| e.verified),
         chart_name: name,
         player,
         recorded_at,
@@ -279,6 +285,125 @@ fn delete_in(root: &Path, file: &str) -> Result<()> {
     fs::remove_file(&path)?;
     index.remove(file);
     write_index(root, &index)
+}
+
+fn valid_local_chart_path(path: &str) -> bool {
+    !path.is_empty()
+        && Path::new(path)
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)))
+}
+
+fn bind_in(root: &Path, file: &str, local_path: &str, verified: bool) -> Result<()> {
+    anyhow::ensure!(valid_file_name(file), "Invalid replay file name");
+    anyhow::ensure!(valid_local_chart_path(local_path), "Invalid local chart path");
+    anyhow::ensure!(root.join(file).is_file(), "Replay does not exist in this library");
+    let mut index = read_index(root)?;
+    let entry = index.entry(file.to_owned()).or_default();
+    entry.local_path = Some(local_path.to_owned());
+    entry.verified = verified;
+    write_index(root, &index)
+}
+
+/// Bind an imported replay to a local chart after the chart and audio fingerprints are checked.
+pub fn bind(file: &str, local_path: &str, verified: bool) -> Result<()> {
+    bind_in(&root()?, file, local_path, verified)
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Match {
+    Found(String, bool),
+    Missing,
+    WrongVersion,
+    WrongAudio,
+    WrongServer,
+}
+
+pub async fn fingerprint(fs: &mut dyn prpr::fs::FileSystem, info: &prpr::info::ChartInfo) -> Result<String> {
+    let chart = prpr::scene::GameScene::load_chart_bytes(fs, info).await?;
+    let extra = fs.load_file("extra.json").await.ok();
+    let mut hash = Sha256::new();
+    hash.update(b"PhiraReplayChart1\\0");
+    hash.update((chart.len() as u64).to_le_bytes());
+    hash.update(&chart);
+    if let Some(extra) = extra {
+        hash.update((extra.len() as u64).to_le_bytes());
+        hash.update(extra);
+    }
+    hash.update(info.offset.to_le_bytes());
+    Ok(format!("{:x}", hash.finalize()))
+}
+
+pub async fn audio_fingerprint(fs: &mut dyn prpr::fs::FileSystem, info: &prpr::info::ChartInfo) -> Result<String> {
+    Ok(format!("{:x}", Sha256::digest(fs.load_file(&info.music).await?)))
+}
+
+/// Find a matching local chart. A fingerprint match is required for new-format tapes;
+/// legacy tapes can only use their recorded local path or chart ID and are marked unverified.
+pub async fn match_chart(replay: &super::storage::ReplayTape, preferred: Option<&str>, candidates: &[String]) -> Result<Match> {
+    let wrong_server = matches!(replay.chart, Some(super::storage::ReplayChartRef::Id(_)))
+        && replay.meta.server.as_ref().is_some_and(|server| {
+            server.trim_end_matches('/') != crate::client::API_URL.trim_end_matches('/')
+        });
+    let original = match &replay.chart {
+        Some(super::storage::ReplayChartRef::Local(path)) if candidates.contains(path) => Some(path.clone()),
+        Some(super::storage::ReplayChartRef::Id(id)) if *id > 0 => Some(format!("download/{id}")),
+        _ => None,
+    };
+    let mut paths: Vec<String> = preferred
+        .into_iter()
+        .map(str::to_owned)
+        .chain(original)
+        .chain(candidates.iter().cloned())
+        .collect();
+    let mut seen = std::collections::HashSet::new();
+    paths.retain(|path| seen.insert(path.clone()));
+
+    let mut wrong_version = false;
+    let mut wrong_audio = false;
+    for path in paths {
+        let Ok(mut fs) = crate::scene::fs_from_path(&path) else {
+            continue;
+        };
+        let Ok(info) = prpr::fs::load_info(fs.as_mut()).await else {
+            continue;
+        };
+        if let Some(expected) = &replay.meta.fingerprint {
+            if fingerprint(fs.as_mut(), &info).await.is_ok_and(|actual| &actual == expected) {
+                if let Some(expected_audio) = &replay.meta.audio_fingerprint {
+                    if !audio_fingerprint(fs.as_mut(), &info).await.is_ok_and(|actual| &actual == expected_audio) {
+                        wrong_audio = true;
+                        continue;
+                    }
+                }
+                return Ok(Match::Found(path, true));
+            }
+            if matches!(replay.chart, Some(super::storage::ReplayChartRef::Id(id)) if info.id == Some(id))
+                || preferred == Some(path.as_str())
+            {
+                wrong_version = true;
+            }
+        } else if preferred == Some(path.as_str())
+            || (!wrong_server
+                && match &replay.chart {
+                    Some(super::storage::ReplayChartRef::Local(local)) => local == &path,
+                    Some(super::storage::ReplayChartRef::Id(id)) => info.id == Some(*id),
+                    None => false,
+                })
+        {
+            return Ok(Match::Found(path, false));
+        }
+    }
+
+    if wrong_server {
+        Ok(Match::WrongServer)
+    } else if wrong_audio {
+        Ok(Match::WrongAudio)
+    } else if wrong_version {
+        Ok(Match::WrongVersion)
+    } else {
+        Ok(Match::Missing)
+    }
 }
 
 /// Export a library replay to a caller-provided writer (for platform save pickers).
