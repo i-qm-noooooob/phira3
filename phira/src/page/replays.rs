@@ -164,8 +164,8 @@ impl Page for ReplayLibraryPage {
         }
 
         if self.keep_btn.touch(touch, t) {
-            if let Some(item) = self.selected_item() {
-                if let Err(err) = library::set_keep(&item.file, !item.keep) {
+            if let Some((file, keep)) = self.selected_item().map(|item| (item.file.clone(), item.keep)) {
+                if let Err(err) = library::set_keep(&file, !keep) {
                     show_error(err);
                 } else {
                     self.reload();
@@ -193,8 +193,8 @@ impl Page for ReplayLibraryPage {
             return Ok(true);
         }
         if self.export_btn.touch(touch, t) {
-            if let Some(item) = self.selected_item() {
-                self.start_export(item.file.clone());
+            if let Some(file) = self.selected_item().map(|item| item.file.clone()) {
+                self.start_export(file);
             }
             return Ok(true);
         }
