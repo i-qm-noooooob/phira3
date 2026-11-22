@@ -60,6 +60,33 @@ fn combo_label(config: &Config) -> &str {
     }
 }
 
+#[cfg(test)]
+mod combo_label_tests {
+    use super::*;
+
+    #[test]
+    fn empty_label_uses_default() {
+        let config = Config::default();
+        assert_eq!(combo_label(&config), "COMBO");
+    }
+
+    #[test]
+    fn custom_label_is_used_without_changing_game_modifiers() {
+        let mut config = Config::default();
+        config.combo_text = "MY COMBO".to_owned();
+        assert_eq!(combo_label(&config), "MY COMBO");
+        assert!(!config.autoplay());
+    }
+
+    #[test]
+    fn autoplay_label_cannot_be_overridden() {
+        let mut config = Config::default();
+        config.combo_text = "FAKE".to_owned();
+        config.mods.insert(Mods::AUTOPLAY);
+        assert_eq!(combo_label(&config), "AUTOPLAY");
+    }
+}
+
 const WAIT_TIME: f64 = 0.5;
 const AFTER_TIME: f64 = 0.7;
 
