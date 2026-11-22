@@ -32,7 +32,7 @@ pub struct ReplayScene {
     judge_index: usize,
     touch_index: usize,
     current_touches: HashMap<u64, (Vec2, usize)>,
-    next_touch: Vec<Option<usize>>, 
+    next_touch: Vec<Option<usize>>,
     play_button: DRectButton,
     back_button: DRectButton,
     backward_button: DRectButton,
