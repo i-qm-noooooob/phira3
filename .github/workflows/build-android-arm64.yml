@@ -43,7 +43,7 @@ jobs:
 
       - name: Install Android build tools and NDK
         run: |
-          SDKMANAGER="$(command -v sdkmanager)"
+          SDKMANAGER="$(find "${ANDROID_HOME}/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null
           "$SDKMANAGER" --install \
