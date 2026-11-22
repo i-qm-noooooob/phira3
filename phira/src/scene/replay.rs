@@ -12,7 +12,6 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use macroquad::prelude::*;
-use std::collections::HashMap;
 use prpr::{
     config::Mods,
     core::NoteKind,
@@ -22,6 +21,7 @@ use prpr::{
     time::TimeManager,
     ui::{DRectButton, Ui},
 };
+use std::collections::HashMap;
 
 pub struct ReplayScene {
     game: GameScene,
@@ -316,7 +316,10 @@ impl Scene for ReplayScene {
                     pos.x,
                     pos.y,
                     config.touch_point_size,
-                    Color { a: config.touch_point_alpha, ..BLUE },
+                    Color {
+                        a: config.touch_point_alpha,
+                        ..BLUE
+                    },
                 );
             }
             set_camera(&ui.camera());
