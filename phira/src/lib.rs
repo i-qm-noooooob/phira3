@@ -790,3 +790,19 @@ pub fn on_background() {
         let _ = tx.send(true);
     }
 }
+
+// The official Android Java shell calls this hook before forwarding a MotionEvent.
+// The current miniquad input path already receives the event through surfaceOnTouch,
+// so this compatibility entry point intentionally does not transform or consume it.
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub extern "C" fn Java_quad_1native_QuadNative_preprocessInput(
+    _env: *mut std::ffi::c_void,
+    _class: *mut std::ffi::c_void,
+    _motion_event: *mut std::ffi::c_void,
+    _x: f32,
+    _y: f32,
+    _z: u8,
+    _z2: u8,
+) {
+}
