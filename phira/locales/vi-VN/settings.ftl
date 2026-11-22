@@ -123,3 +123,10 @@ item-show-perfect-combo = Hiển thị Perfect Combo
 item-show-perfect-combo-sub = Hiển thị PERFECT COMBO bên dưới số combo; chỉ thay đổi giao diện.
 item-combo-text = Nội dung Combo
 item-combo-text-sub = Nhãn tùy chỉnh bên dưới số combo; tối đa 16 ký tự.
+
+fps-pos-top-center = Chính giữa phía trên
+fps-pos-bottom-center = Chính giữa phía dưới
+fps-pos-top-left = Góc trên bên trái
+fps-pos-top-right = Góc trên bên phải
+fps-pos-bottom-left = Góc dưới bên trái
+fps-pos-bottom-right = Góc dưới bên phải
