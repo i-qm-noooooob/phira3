@@ -1216,7 +1216,7 @@ impl DebugList {
             render_title(ui, tl!("item-touch-color"), Some(tl!("item-touch-color-sub")));
             let color = config.touch_point_color & 0x00ff_ffff;
             self.touch_color_btn.render_text(ui, Rect::new(rr.x - 0.29, rr.y, 0.26, rr.h), t, format!("#{color:06X}"), 0.36, false);
-            ui.fill_rect(Rect::new(rr.x - 0.035, rr.y + 0.035, 0.025, rr.h - 0.07), Color::from_hex_rgb(color));
+            ui.fill_rect(Rect::new(rr.x - 0.075, rr.y + 0.035, 0.025, rr.h - 0.07), Color::from_hex_rgb(color));
             self.touch_color_reset_btn.render_text(ui, rr, t, tl!("color-reset"), 0.34, false);
         }
         item! {
