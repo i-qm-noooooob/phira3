@@ -457,17 +457,15 @@ impl Scene for MainScene {
                         }
                     };
                 }
-                "_import_replay" => {
-                    match crate::replay::library::import_package(Path::new(&file)) {
-                        Err(err) => show_error(err.context("Failed to import replay")),
-                        Ok(imported) => {
-                            let count = imported.len();
-                            let added = imported.iter().filter(|(_, inserted)| *inserted).count();
-                            crate::page::replays::mark_dirty();
-                            show_message(format!("Imported {count} replay(s); {added} new")).ok();
-                        }
+                "_import_replay" => match crate::replay::library::import_package(Path::new(&file)) {
+                    Err(err) => show_error(err.context("Failed to import replay")),
+                    Ok(imported) => {
+                        let count = imported.len();
+                        let added = imported.iter().filter(|(_, inserted)| *inserted).count();
+                        crate::page::replays::mark_dirty();
+                        show_message(format!("Imported {count} replay(s); {added} new")).ok();
                     }
-                }
+                },
                 "_import_respack" => {
                     let root = dir::respacks()?;
                     let dir = prpr::dir::Dir::new(&root)?;
