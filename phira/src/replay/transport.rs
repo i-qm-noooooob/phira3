@@ -32,10 +32,7 @@ pub fn frame_step(frames: &[f64], current: f64, delta: i32, end: f64) -> (f64, b
 
 /// Cycle the viewer playback rate without changing the replay's recorded chart speed.
 pub fn next_rate(current: f64) -> f64 {
-    let index = RATES
-        .iter()
-        .position(|rate| (*rate as f64 - current).abs() < 1e-6)
-        .unwrap_or(4);
+    let index = RATES.iter().position(|rate| (*rate as f64 - current).abs() < 1e-6).unwrap_or(4);
     RATES[(index + 1) % RATES.len()] as f64
 }
 
