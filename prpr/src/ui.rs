@@ -9,6 +9,9 @@ pub use chart_info::*;
 mod dialog;
 pub use dialog::Dialog;
 
+mod fps;
+pub use fps::draw_fps_overlay;
+
 mod scroll;
 use inputbox::{InputBox, InputMode};
 pub use scroll::*;
