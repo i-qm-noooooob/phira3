@@ -41,6 +41,8 @@ pub struct ReplayScene {
     mark_a_button: DRectButton,
     mark_b_button: DRectButton,
     loop_button: DRectButton,
+    rate_button: DRectButton,
+    playback_rate: f64,
     loop_a: Option<f64>,
     loop_b: Option<f64>,
     loop_enabled: bool,
@@ -153,6 +155,8 @@ impl ReplayScene {
             mark_a_button: DRectButton::new(),
             mark_b_button: DRectButton::new(),
             loop_button: DRectButton::new(),
+            rate_button: DRectButton::new(),
+            playback_rate: 1.0,
             loop_a: None,
             loop_b: None,
             loop_enabled: false,
@@ -344,6 +348,13 @@ impl Scene for ReplayScene {
             self.loop_enabled = false;
             return Ok(true);
         }
+        if self.rate_button.touch(touch, t) {
+            let rates = transport::RATES;
+            let current = rates.iter().position(|rate| (*rate as f64 - self.playback_rate).abs() < 1e-6).unwrap_or(4);
+            self.playback_rate = rates[(current + 1) % rates.len()] as f64;
+            self.game.set_replay_playback_rate(self.playback_rate, self.current, self.playing)?;
+            return Ok(true);
+        }
         if self.loop_button.touch(touch, t) {
             self.loop_enabled = !self.loop_enabled && self.loop_a.is_some_and(|a| self.loop_b.is_some_and(|b| b - a >= 0.05));
             if self.loop_enabled && self.current >= self.loop_b.unwrap_or(f64::INFINITY) {
@@ -365,7 +376,7 @@ impl Scene for ReplayScene {
         let delta = (real - self.last_real).clamp(0., 0.1);
         self.last_real = real;
         if self.playing {
-            self.current += delta * self.game.res.config.speed as f64;
+            self.current += delta * self.game.res.config.speed as f64 * self.playback_rate;
             if let Some(target) = transport::loop_target(self.current, self.loop_a, self.loop_b, self.loop_enabled) {
                 self.seek_by(target - self.current)?;
             }
@@ -408,7 +419,7 @@ impl Scene for ReplayScene {
         let area = ui.content_rect();
         let y = area.y + area.h - 0.09;
         let marker_y = y - 0.075;
-        let marker_w = (area.w - 0.10) / 3.;
+        let marker_w = (area.w - 0.12) / 4.;
         let tool_y = marker_y - 0.065;
         let tool_w = (area.w - 0.10) / 4.;
         self.step_back_button
@@ -442,6 +453,14 @@ impl Scene for ReplayScene {
             if self.loop_enabled { "A–B ON" } else { "A–B OFF" },
             0.23,
             self.loop_a.is_some_and(|a| self.loop_b.is_some_and(|b| b - a >= 0.05)),
+        );
+        self.rate_button.render_text(
+            ui,
+            Rect::new(area.x + 0.10 + marker_w * 3., marker_y, marker_w, 0.055),
+            tm.now() as f32,
+            format!("{:.2}x", self.playback_rate),
+            0.23,
+            true,
         );
         let w = (area.w - 0.14) / 4.;
         self.back_button
