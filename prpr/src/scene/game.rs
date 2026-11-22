@@ -874,7 +874,10 @@ impl GameScene {
         }
         let (touch_size, touch_alpha, touch_color) = touch_point_style(&self.res.config);
         if self.res.config.touch_debug {
-            let color = Color { a: touch_alpha, ..Color::from_hex_rgb(touch_color) };
+            let color = Color {
+                a: touch_alpha,
+                ..Color::from_hex_rgb(touch_color)
+            };
             for touch in Judge::get_touches() {
                 ui.fill_circle(touch.position.x, touch.position.y, touch_size, color);
             }
