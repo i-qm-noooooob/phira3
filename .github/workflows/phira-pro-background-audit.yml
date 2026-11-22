@@ -54,10 +54,10 @@ jobs:
                   ["git", "-C", str(repo), "ls-tree", "-r", "-z", "--full-tree", "HEAD"]
               )
               result = {}
-              for item in raw.split(b"\\0"):
+              for item in raw.split(b"\0"):
                   if not item:
                       continue
-                  meta, path = item.split(b"\\t", 1)
+                  meta, path = item.split(b"\t", 1)
                   mode, kind, blob = meta.decode().split()
                   if kind == "blob":
                       result[path.decode("utf-8", "replace")] = blob
@@ -75,8 +75,7 @@ jobs:
                   status = "IDENTICAL"
               else:
                   status = "CHANGED_BOTH"
-              rows.append((status, path, regular.get(path, ""),
-                           pro.get(path, "")))
+              rows.append((status, path, regular.get(path, ""), pro.get(path, "")))
 
           counts = {key: sum(row[0] == key for row in rows)
                     for key in ("PRO_ONLY", "REGULAR_ONLY", "CHANGED_BOTH", "IDENTICAL")}
@@ -86,22 +85,21 @@ jobs:
               writer.writerows(rows)
 
           with open("phira-pro-audit.md", "w", encoding="utf-8") as f:
-              f.write("# Phira Pro background source audit\\n\\n")
-              f.write("This is a tracked-file inventory, not proof that a feature is ported. ")
-              f.write("Blob equality is used only to identify identical files.\\n\\n")
-              f.write("| Category | Files |\\n|---|---:|\\n")
+              f.write("# Phira Pro background source audit\n\n")
+              f.write("Tracked-file inventory only; this does not prove feature parity.\n\n")
+              f.write("| Category | Files |\n|---|---:|\n")
               for key, label in [
                   ("PRO_ONLY", "Pro-only files"),
                   ("CHANGED_BOTH", "Files changed in both trees"),
                   ("IDENTICAL", "Identical files"),
                   ("REGULAR_ONLY", "Regular-only files"),
               ]:
-                  f.write(f"| {label} | {counts[key]} |\\n")
-              f.write(f"\\nTotal distinct paths: {len(rows)}\\n")
-              f.write("\\n## Pro-only paths\\n")
+                  f.write(f"| {label} | {counts[key]} |\n")
+              f.write(f"\nTotal distinct paths: {len(rows)}\n")
+              f.write("\n## Pro-only paths\n")
               for status, path, _, _ in rows:
                   if status == "PRO_ONLY":
-                      f.write(f"- `{path}`\\n")
+                      f.write("- " + path + "\n")
           print("Inventory totals:", counts, "total paths:", len(rows))
           PY
 
