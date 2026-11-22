@@ -12,6 +12,7 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use macroquad::prelude::*;
+use std::collections::HashMap;
 use prpr::{
     config::Mods,
     core::NoteKind,
@@ -29,6 +30,8 @@ pub struct ReplayScene {
     last_real: f64,
     playing: bool,
     judge_index: usize,
+    touch_index: usize,
+    current_touches: HashMap<u64, Vec2>,
     play_button: DRectButton,
     back_button: DRectButton,
     backward_button: DRectButton,
@@ -113,6 +116,8 @@ impl ReplayScene {
             last_real: 0.,
             playing: false,
             judge_index: 0,
+            touch_index: 0,
+            current_touches: HashMap::new(),
             play_button: DRectButton::new(),
             back_button: DRectButton::new(),
             backward_button: DRectButton::new(),
@@ -161,6 +166,20 @@ impl ReplayScene {
         }
     }
 
+    fn apply_touches(&mut self) {
+        while let Some(event) = self.tape.touches.get(self.touch_index).copied() {
+            if event.t as f64 > self.current {
+                break;
+            }
+            self.touch_index += 1;
+            if event.phase >= 2 {
+                self.current_touches.remove(&event.id);
+            } else {
+                self.current_touches.insert(event.id, vec2(event.x, event.y));
+            }
+        }
+    }
+
     fn toggle_playback(&mut self) -> Result<()> {
         if self.playing {
             self.game.music.pause()?;
@@ -185,10 +204,13 @@ impl ReplayScene {
         if target < self.current {
             self.game.reset_replay();
             self.judge_index = 0;
+            self.touch_index = 0;
+            self.current_touches.clear();
         }
         self.current = target;
         self.game.res.time = target;
         self.apply_events();
+        self.apply_touches();
         self.game.tick_replay();
         let audio_time = (target + self.game.offset() as f64).max(0.);
         self.game.music.seek_to(audio_time)?;
@@ -256,12 +278,28 @@ impl Scene for ReplayScene {
         self.game.res.time = self.current;
         tm.seek_to(self.current + self.game.offset() as f64);
         self.apply_events();
+        self.apply_touches();
         self.game.tick_replay();
         Ok(())
     }
 
     fn render(&mut self, tm: &mut TimeManager, ui: &mut Ui) -> Result<()> {
         self.game.render(tm, ui)?;
+        if !self.current_touches.is_empty() {
+            let fitted = self.game.res.camera.viewport.unwrap_or(ui.viewport);
+            let mut touch_ui = Ui::new(ui.text_painter, Some(fitted));
+            set_camera(&touch_ui.camera());
+            let config = &self.game.res.config;
+            for pos in self.current_touches.values() {
+                touch_ui.fill_circle(
+                    pos.x,
+                    pos.y,
+                    config.touch_point_size,
+                    Color { a: config.touch_point_alpha, ..BLUE },
+                );
+            }
+            set_camera(&ui.camera());
+        }
         let area = ui.content_rect();
         let y = area.y + area.h - 0.09;
         let w = (area.w - 0.14) / 4.;
