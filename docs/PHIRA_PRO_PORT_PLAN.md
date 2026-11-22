@@ -33,5 +33,9 @@ The integration branch is based on the official Phira tree. Keep `main` unchange
 
 - Repository access verified: admin/push access to the working fork.
 - Integration branch created from the fork's official-base `main`.
-- Initial source inventory completed; detailed file-by-file review remains part of each port stage.
-- No application source changes or APK builds have been made yet.
+- Initial source inventory completed: 1,228 Pro tracked blobs, 574 Pro-only files, 206 changed common files, and 448 identical common files. This is an inventory, not a claim that every file has already received a manual line-by-line review.
+- Implemented isolated, visual/settings-only features on this branch: FPS overlay and six positions; custom combo label; Perfect Combo label; gameplay background blur and dim; touch-point color/opacity/size; localized gameplay settings; Low/Standard/High quality presets; and an anti-aliasing selector (Off/FXAA/MSAA 2x).
+- These changes intentionally leave the official judgement and score pipeline untouched. Practice-affecting and score-affecting Pro features have not been ported.
+- Latest anti-aliasing validation: CI run [45008490282](https://github.com/i-qm-noooooob/phira3/actions/runs/45008490282) passed Tests, Format, Clippy Linux, Clippy macOS, and Clippy iOS (5/5).
+- Android APK build, ARMv7 native dependency validation, and physical-device testing have not yet been completed.
+- Performance-settings review found Pro-only shader and font-atlas optimizations require their full rendering/platform support; these are not being exposed as settings until that support is ported and validated.
