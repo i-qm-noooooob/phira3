@@ -177,3 +177,5 @@ replay-library-match-version = Phiên bản chart không khớp với replay
 replay-library-match-audio = Chart khớp nhưng tệp nhạc khác
 replay-library-match-server = Replay thuộc máy chủ Phira khác
 replay-library-match-failed = Ghép chart thất bại
+replay-library-play = Phát
+replay-library-loading = Đang tải bản phát lại...
