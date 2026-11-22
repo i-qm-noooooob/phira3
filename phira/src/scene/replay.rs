@@ -129,6 +129,8 @@ impl ReplayScene {
             next_touch[index] = next_by_id.insert(event.id, index);
         }
 
+        let errors = tape.judges.iter().filter(|event| matches!(event.kind, 2 | 3 | 8 | 9)).map(|event| event.t).collect();
+
         Ok(Self {
             game,
             tape,
@@ -153,7 +155,7 @@ impl ReplayScene {
             step_forward_button: DRectButton::new(),
             prev_error_button: DRectButton::new(),
             next_error_button: DRectButton::new(),
-            errors: tape.judges.iter().filter(|event| matches!(event.kind, 2 | 3 | 8 | 9)).map(|event| event.t).collect(),
+            errors,
             selected_error: None,
             exit: false,
         })
