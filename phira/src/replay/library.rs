@@ -207,6 +207,53 @@ pub fn import(source: &Path) -> Result<(ReplayItem, bool)> {
     Ok((item, inserted))
 }
 
+/// Import a single replay or a ZIP package containing replay files.
+/// The complete archive is staged and validated before any library entry is committed.
+pub fn import_package(source: &Path) -> Result<Vec<(ReplayItem, bool)>> {
+    if !source.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("zip")) {
+        return Ok(vec![import(source)?]);
+    }
+
+    let file = fs::File::open(source).context("Cannot open replay package")?;
+    let mut archive = zip::ZipArchive::new(file).context("Invalid replay ZIP package")?;
+    anyhow::ensure!(archive.len() <= 1000, "Replay package contains too many entries");
+    let temp = tempfile::tempdir()?;
+    let mut staged = Vec::new();
+    let mut total = 0u64;
+
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i)?;
+        if entry.is_dir() {
+            continue;
+        }
+        let relative = entry.enclosed_name().context("Replay package contains an invalid path")?;
+        let extension = relative.extension().and_then(|e| e.to_str()).unwrap_or_default();
+        anyhow::ensure!(
+            matches!(extension.to_ascii_lowercase().as_str(), "phirarec" | "phirar" | "ppr"),
+            "Replay package contains a non-replay file"
+        );
+        let declared = entry.size();
+        anyhow::ensure!(declared <= super::storage::MAX_FILE_BYTES as u64, "A replay in the package exceeds 128 MiB");
+        total = total.checked_add(declared).context("Replay package size overflow")?;
+        anyhow::ensure!(total <= 512 * 1024 * 1024, "Replay package expands beyond 512 MiB");
+
+        let mut bytes = Vec::with_capacity(declared as usize);
+        entry
+            .by_ref()
+            .take(super::storage::MAX_FILE_BYTES as u64 + 1)
+            .read_to_end(&mut bytes)
+            .context("Failed to extract replay from package")?;
+        anyhow::ensure!(bytes.len() as u64 == declared, "Replay package entry size mismatch");
+        super::storage::decode(&bytes).context("Replay package contains an invalid replay")?;
+
+        let staged_path = temp.path().join(format!("{i}.phirarec"));
+        write_atomic(&staged_path, &bytes)?;
+        staged.push(staged_path);
+    }
+    anyhow::ensure!(!staged.is_empty(), "Replay package is empty");
+    staged.iter().map(|path| import(path)).collect()
+}
+
 /// Toggle retention protection. This only affects library cleanup, not replay contents.
 pub fn set_keep(file: &str, keep: bool) -> Result<()> {
     anyhow::ensure!(valid_file_name(file), "Invalid replay file name");
