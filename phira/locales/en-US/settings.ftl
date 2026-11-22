@@ -193,3 +193,6 @@ replay-pause = Pause
 replay-play = Play
 replay-library-search = Search replays by chart, player or filename
 replay-library-no-matches = No replays match this search.
+replay-library-sort-recent = Recent
+replay-library-sort-name = Chart name
+replay-library-sort-size = File size
