@@ -268,18 +268,11 @@ impl ReplayScene {
         Ok(())
     }
 
-    fn timeline_button_left(&self) -> f32 {
-        self.timeline_rect().x
-    }
-
-    fn timeline_button_width(&self) -> f32 {
-        self.timeline_rect().w
-    }
-
-    fn timeline_rect(&self) -> Rect {
-        let area = self.game.res.camera.viewport.unwrap_or(Rect::new(0., 0., screen_width(), screen_height()));
-        let y = area.y + area.h - 0.09;
-        Rect::new(area.x + 0.025, y - 0.035, area.w - 0.05, 0.03)
+    fn timeline_target(&self, touch: &Touch) -> Option<f64> {
+        self.timeline_button
+            .inner
+            .normalized_x(touch.position)
+            .and_then(|fraction| transport::timeline_target(fraction, 0., 1., self.game.res.track_length.max(0.)))
     }
 
     fn seek_by(&mut self, delta: f64) -> Result<()> {
@@ -335,31 +328,16 @@ impl Scene for ReplayScene {
         match touch.phase {
             TouchPhase::Started if self.timeline_button.inner.contains(touch.position) => {
                 self.timeline_drag_id = Some(touch.id);
-                self.timeline_drag_target = transport::timeline_target(
-                    touch.position.x,
-                    self.timeline_button_left(),
-                    self.timeline_button_width(),
-                    self.game.res.track_length.max(0.),
-                );
+                self.timeline_drag_target = self.timeline_target(touch);
                 return Ok(true);
             }
             TouchPhase::Moved | TouchPhase::Stationary if self.timeline_drag_id == Some(touch.id) => {
-                self.timeline_drag_target = transport::timeline_target(
-                    touch.position.x,
-                    self.timeline_button_left(),
-                    self.timeline_button_width(),
-                    self.game.res.track_length.max(0.),
-                );
+                self.timeline_drag_target = self.timeline_target(touch);
                 return Ok(true);
             }
             TouchPhase::Ended if self.timeline_drag_id == Some(touch.id) => {
                 self.timeline_drag_id = None;
-                self.timeline_drag_target = transport::timeline_target(
-                    touch.position.x,
-                    self.timeline_button_left(),
-                    self.timeline_button_width(),
-                    self.game.res.track_length.max(0.),
-                ).or(self.timeline_drag_target);
+                self.timeline_drag_target = self.timeline_target(touch).or(self.timeline_drag_target);
                 if let Some(target) = self.timeline_drag_target.take() {
                     self.seek_by(target - self.current)?;
                 }
