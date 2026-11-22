@@ -16,6 +16,143 @@ pub struct Container {
     pub payload: Value,
 }
 
+/// Typed replay data used by the library and, later, the playback scene.
+/// Optional Pro-only extension objects remain opaque until their owning subsystem is ported.
+#[derive(Clone, Debug, Default, serde::Deserialize)]
+#[serde(default)]
+pub struct ReplayMetadata {
+    pub id: String,
+    pub player: Option<String>,
+    pub player_id: Option<i32>,
+    pub recorded_at: Option<i64>,
+    pub name: String,
+    pub level: String,
+    pub difficulty: f32,
+    pub server: Option<String>,
+    pub fingerprint: Option<String>,
+    pub audio_fingerprint: Option<String>,
+    pub result: Option<Value>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub enum ReplayChartRef {
+    Id(i32),
+    Local(String),
+}
+
+#[derive(Clone, Copy, Debug, Default, serde::Deserialize)]
+pub struct ReplayTouch {
+    pub phase: u8,
+    pub id: u64,
+    pub x: f32,
+    pub y: f32,
+    pub t: f32,
+}
+
+#[derive(Clone, Copy, Debug, Default, serde::Deserialize)]
+pub struct ReplayJudge {
+    pub t: f64,
+    pub line: u32,
+    pub note: u32,
+    pub kind: u8,
+    pub diff: f32,
+    pub head_grade: Option<u8>,
+}
+
+fn default_speed() -> f32 {
+    1.
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(default)]
+pub struct ReplayTape {
+    pub meta: ReplayMetadata,
+    pub chart: Option<ReplayChartRef>,
+    pub chart_file: Option<String>,
+    pub chart_updated: Option<i64>,
+    pub offset: f32,
+    #[serde(default = "default_speed")]
+    pub speed: f32,
+    pub mods: u32,
+    pub aspect_ratio: Option<f32>,
+    pub frames: Vec<f64>,
+    pub touches: Vec<ReplayTouch>,
+    pub judges: Vec<ReplayJudge>,
+    pub has_diffs: bool,
+    pub has_speed: bool,
+    pub theoretical_score: bool,
+    pub grading: Value,
+    pub settings: Value,
+    pub gameplay: Value,
+    pub capture: Value,
+    #[serde(skip)]
+    pub source_version: u32,
+    #[serde(skip)]
+    pub repaired_order: bool,
+}
+
+impl Default for ReplayTape {
+    fn default() -> Self {
+        Self {
+            meta: ReplayMetadata::default(),
+            chart: None,
+            chart_file: None,
+            chart_updated: None,
+            offset: 0.,
+            speed: 1.,
+            mods: 0,
+            aspect_ratio: None,
+            frames: Vec::new(),
+            touches: Vec::new(),
+            judges: Vec::new(),
+            has_diffs: false,
+            has_speed: false,
+            theoretical_score: false,
+            grading: Value::Null,
+            settings: Value::Null,
+            gameplay: Value::Null,
+            capture: Value::Null,
+            source_version: 0,
+            repaired_order: false,
+        }
+    }
+}
+
+impl ReplayTape {
+    pub fn decode(bytes: &[u8]) -> Result<Self> {
+        let container = decode(bytes)?;
+        let mut replay: Self = serde_json::from_value(container.payload).context("Invalid replay event data")?;
+        replay.source_version = container.version;
+        replay.validate()?;
+        replay.repaired_order = replay.frames.windows(2).any(|w| w[0] > w[1])
+            || replay.judges.windows(2).any(|w| w[0].t > w[1].t)
+            || replay.touches.windows(2).any(|w| w[0].t > w[1].t);
+        replay.frames.sort_by(f64::total_cmp);
+        replay.judges.sort_by(|a, b| a.t.total_cmp(&b.t));
+        replay.touches.sort_by(|a, b| a.t.total_cmp(&b.t));
+        Ok(replay)
+    }
+
+    fn validate(&self) -> Result<()> {
+        anyhow::ensure!(self.frames.len() <= MAX_EVENTS && self.touches.len() <= MAX_EVENTS && self.judges.len() <= MAX_EVENTS, "Replay contains too many events");
+        anyhow::ensure!(self.offset.is_finite(), "Replay offset is invalid");
+        anyhow::ensure!(self.speed.is_finite() && self.speed > 0. && self.speed <= 16., "Replay speed is invalid");
+        anyhow::ensure!(self.aspect_ratio.is_none_or(|v| v.is_finite() && v > 0. && v <= 10.), "Replay aspect ratio is invalid");
+        let valid_time = |t: f64| t.is_finite() && (-3600. ..=86400.).contains(&t);
+        anyhow::ensure!(self.frames.iter().all(|t| valid_time(*t)), "Replay contains an invalid frame timestamp");
+        anyhow::ensure!(
+            self.touches.iter().all(|e| valid_time(e.t as f64) && e.phase <= 2 && e.x.is_finite() && e.y.is_finite()),
+            "Replay contains an invalid touch event"
+        );
+        anyhow::ensure!(
+            self.judges.iter().all(|e| valid_time(e.t) && e.kind <= 9 && e.diff.is_finite()
+                && e.head_grade.is_none_or(|g| matches!(g, 0 | 1 | 2 | 3 | 4 | 7 | 8 | 9))),
+            "Replay contains an invalid judgement event"
+        );
+        Ok(())
+    }
+}
+
 /// Decode supported Pro replay versions into a bounded JSON representation.
 pub fn decode(bytes: &[u8]) -> Result<Container> {
     anyhow::ensure!(bytes.len() <= MAX_FILE_BYTES, "Replay file exceeds 128 MiB");
