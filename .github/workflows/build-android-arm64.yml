@@ -1,0 +1,100 @@
+name: Build Android APK (ARM64)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-arm64:
+    name: Build and package Phira3 ARM64 APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      CARGO_TERM_COLOR: always
+      ANDROID_NDK_VERSION: 27.2.12479018
+      ANDROID_PLATFORM: 35
+      BASE_VERSION: v0.8.3
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: integration/phira-pro-port
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build tools and NDK
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "ndk;${ANDROID_NDK_VERSION}"
+          echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Install Rust Android target and cargo-ndk
+        run: |
+          rustup toolchain install nightly-2026-01-01 --profile minimal
+          rustup target add aarch64-linux-android --toolchain nightly-2026-01-01
+          rustup default nightly-2026-01-01
+          cargo install cargo-ndk --locked
+
+      - name: Build native Phira library
+        run: |
+          cargo ndk -t arm64-v8a --platform "${ANDROID_PLATFORM}" build --release --locked -p phira
+          test -s target/aarch64-linux-android/release/libphira.so
+          "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf" -h target/aarch64-linux-android/release/libphira.so | grep -E 'Class:|Machine:'
+
+      - name: Download matching official Android shell
+        run: |
+          curl --fail --location --retry 3 \
+            "https://github.com/TeamFlos/phira/releases/download/${BASE_VERSION}/Phira-android-arm64-v8a-${BASE_VERSION}.apk" \
+            --output official-base.apk
+          unzip -t official-base.apk
+          mkdir package
+          unzip -q official-base.apk -d package
+          test -s package/lib/arm64-v8a/libphira.so
+
+      - name: Replace native library and re-sign APK
+        run: |
+          cp target/aarch64-linux-android/release/libphira.so package/lib/arm64-v8a/libphira.so
+          rm -rf package/META-INF
+          (cd package && zip -X -q -r ../unsigned.apk .)
+          "${ANDROID_HOME}/build-tools/35.0.0/zipalign" -f -p 4 unsigned.apk aligned.apk
+          keytool -genkeypair -noprompt \
+            -keystore phira3-ci.keystore \
+            -storepass phira3-ci-password \
+            -keypass phira3-ci-password \
+            -alias phira3-ci \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Phira3 CI,O=Phira3"
+          "${ANDROID_HOME}/build-tools/35.0.0/apksigner" sign \
+            --ks phira3-ci.keystore \
+            --ks-key-alias phira3-ci \
+            --ks-pass pass:phira3-ci-password \
+            --key-pass pass:phira3-ci-password \
+            --out Phira3-arm64-v8a.apk aligned.apk
+          "${ANDROID_HOME}/build-tools/35.0.0/apksigner" verify --verbose --print-certs Phira3-arm64-v8a.apk
+          unzip -l Phira3-arm64-v8a.apk | grep 'lib/arm64-v8a/libphira.so'
+          sha256sum Phira3-arm64-v8a.apk target/aarch64-linux-android/release/libphira.so | tee SHA256SUMS.txt
+
+      - name: Upload APK and native library
+        uses: actions/upload-artifact@v4
+        with:
+          name: Phira3-ARM64-APK
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            Phira3-arm64-v8a.apk
+            target/aarch64-linux-android/release/libphira.so
+            SHA256SUMS.txt
