@@ -290,6 +290,7 @@ fn delete_in(root: &Path, file: &str) -> Result<()> {
 
 fn valid_local_chart_path(path: &str) -> bool {
     !path.is_empty()
+        && !path.contains(['\\\\', ':'])
         && Path::new(path)
             .components()
             .all(|component| matches!(component, Component::Normal(_)))
@@ -351,6 +352,7 @@ pub async fn match_chart(replay: &super::storage::ReplayTape, preferred: Option<
         Some(super::storage::ReplayChartRef::Id(id)) if *id > 0 => Some(format!("download/{id}")),
         _ => None,
     };
+    let preferred = preferred.filter(|path| valid_local_chart_path(path) && candidates.iter().any(|candidate| candidate == path));
     let mut paths: Vec<String> = preferred
         .into_iter()
         .map(str::to_owned)
