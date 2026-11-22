@@ -49,6 +49,17 @@ mod inner;
 #[cfg(closed)]
 use inner::*;
 
+/// Custom combo label is visual-only and never changes judgement or score data.
+fn combo_label(config: &Config) -> &str {
+    if config.autoplay() {
+        "AUTOPLAY"
+    } else if config.combo_text.is_empty() {
+        "COMBO"
+    } else {
+        config.combo_text.as_str()
+    }
+}
+
 const WAIT_TIME: f64 = 0.5;
 const AFTER_TIME: f64 = 0.7;
 
@@ -481,7 +492,7 @@ impl GameScene {
                     let combo_top = btm + 0.01;
                     self.chart
                         .with_element(ui, res, UIElement::Combo, None, (0., combo_top + unit_h * 0.2), |ui, c| {
-                            ui.text(if res.config.autoplay() { "AUTOPLAY" } else { "COMBO" })
+                            ui.text(combo_label(&res.config))
                                 .pos(0., combo_top)
                                 .anchor(0.5, 0.)
                                 .size(0.4)
@@ -501,10 +512,10 @@ impl GameScene {
                             .draw_using(&PGR_FONT)
                             .bottom()
                     });
-                    let ct = ui.text("COMBO").size(0.4).measure().center();
+                    let ct = ui.text(combo_label(&res.config)).size(0.4).measure().center();
                     let combo_top = btm + 0.01 + ct.y;
                     self.chart.with_element(ui, res, UIElement::Combo, None, (0., combo_top), |ui, c| {
-                        ui.text(if res.config.autoplay() { "AUTOPLAY" } else { "COMBO" })
+                        ui.text(combo_label(&res.config))
                             .pos(0., combo_top)
                             .anchor(0.5, 0.5)
                             .size(0.4)
