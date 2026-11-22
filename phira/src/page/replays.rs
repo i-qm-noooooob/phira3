@@ -440,11 +440,15 @@ impl Page for ReplayLibraryPage {
             y += 0.055;
 
             if filtered.is_empty() {
-                ui.text(tl!("replay-library-empty"))
-                    .pos(area.x + 0.025, y)
-                    .size(0.31)
-                    .max_width(area.w - 0.05)
-                    .draw();
+                ui.text(if self.items.is_empty() {
+                    tl!("replay-library-empty")
+                } else {
+                    tl!("replay-library-no-matches")
+                })
+                .pos(area.x + 0.025, y)
+                .size(0.31)
+                .max_width(area.w - 0.05)
+                .draw();
             } else {
                 let line_h = 0.09;
                 let available = ((area.bottom() - y - 0.10) / line_h).floor().max(0.) as usize;
