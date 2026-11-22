@@ -149,7 +149,8 @@ impl ReplayScene {
             self.game.music.pause()?;
             self.playing = false;
         } else {
-            self.game.music.seek_to((self.current + self.game.offset() as f64).max(0.))?;
+            let target = (self.current + self.game.offset() as f64).max(0.);
+            self.game.music.seek_to(target)?;
             self.game.music.play()?;
             self.playing = true;
         }
@@ -167,7 +168,8 @@ impl Scene for ReplayScene {
         tm.seek_to(0.1);
         self.game.update(tm)?;
         self.game.music.pause()?;
-        self.game.music.seek_to((self.game.offset() as f64).max(0.))?;
+        let initial_audio_time = (self.game.offset() as f64).max(0.);
+        self.game.music.seek_to(initial_audio_time)?;
         self.game.res.time = 0.;
         self.game.tick_replay();
         self.last_real = tm.real_time();
