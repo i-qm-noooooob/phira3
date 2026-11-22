@@ -855,6 +855,8 @@ struct ChartList {
     speed_slider: Slider,
     size_slider: Slider,
     background_blur_slider: Slider,
+    fixed_background_btn: DRectButton,
+    background_dim_slider: Slider,
     combo_text_btn: DRectButton,
     show_perfect_combo_btn: DRectButton,
 }
@@ -874,6 +876,8 @@ impl ChartList {
             speed_slider: Slider::new(0.5..2., 0.05),
             size_slider: Slider::new(0.8..1.2, 0.005),
             background_blur_slider: Slider::new(0.0..1.0, 0.01),
+            fixed_background_btn: DRectButton::new(),
+            background_dim_slider: Slider::new(0.0..1.0, 0.01),
             combo_text_btn: DRectButton::new(),
             show_perfect_combo_btn: DRectButton::new(),
         }
@@ -930,6 +934,15 @@ impl ChartList {
         }
         if let wt @ Some(_) = self.background_blur_slider.touch(touch, t, &mut config.gameplay_background_blur) {
             return Ok(wt);
+        }
+        if self.fixed_background_btn.touch(touch, t) {
+            config.fixed_background ^= true;
+            return Ok(Some(true));
+        }
+        if config.fixed_background {
+            if let wt @ Some(_) = self.background_dim_slider.touch(touch, t, &mut config.background_dim) {
+                return Ok(wt);
+            }
         }
         if self.show_perfect_combo_btn.touch(touch, t) {
             config.show_perfect_combo ^= true;
@@ -1016,6 +1029,16 @@ impl ChartList {
         item! {
             render_title(ui, Cow::Borrowed("Gameplay background blur"), Some(Cow::Borrowed("0 = sharp, 0.5 = default, 1 = strongest")));
             self.background_blur_slider.render(ui, rr, t, config.gameplay_background_blur, format!("{:.2}", config.gameplay_background_blur));
+        }
+        item! {
+            render_title(ui, tl!("item-fixed-background"), Some(tl!("item-fixed-background-sub")));
+            render_switch(ui, rr, t, &mut self.fixed_background_btn, config.fixed_background);
+        }
+        if config.fixed_background {
+            item! {
+                render_title(ui, tl!("item-background-dim"), None);
+                self.background_dim_slider.render(ui, rr, t, config.background_dim, format!("{:.2}", config.background_dim));
+            }
         }
         item! {
             render_title(ui, Cow::Borrowed("Show perfect combo"), Some(Cow::Borrowed("Display PERFECT COMBO below the combo count; visual only")));
