@@ -62,6 +62,29 @@ pub struct LoadingScene {
     use_black: bool,
 }
 
+fn gameplay_blur_radius(amount: f32, min_dimension: u32) -> f32 {
+    let amount = if amount.is_finite() { amount.clamp(0., 1.) } else { 0.5 };
+    if amount <= 0.5 {
+        amount * 100.
+    } else {
+        50. + (amount - 0.5) * 2. * (min_dimension as f32 * 0.5).max(50.)
+    }
+}
+
+#[cfg(test)]
+mod gameplay_blur_tests {
+    use super::gameplay_blur_radius;
+
+    #[test]
+    fn blur_strength_is_clamped_and_default_preserves_existing_radius() {
+        assert_eq!(gameplay_blur_radius(0.0, 1000), 0.0);
+        assert_eq!(gameplay_blur_radius(0.5, 1000), 50.0);
+        assert_eq!(gameplay_blur_radius(1.0, 1000), 550.0);
+        assert_eq!(gameplay_blur_radius(2.0, 1000), 550.0);
+        assert_eq!(gameplay_blur_radius(f32::NAN, 1000), 50.0);
+    }
+}
+
 impl LoadingScene {
     pub async fn load(fs: &mut dyn FileSystem, path: &str, blur_amount: f32) -> Result<(SafeTexture, SafeTexture, Color)> {
         let image = image::load_from_memory(&fs.load_file(path).await?).context("Failed to decode image")?;
@@ -71,12 +94,7 @@ impl LoadingScene {
         let mut blurred_rgb = image.to_rgb8();
         let color = color_thief::get_palette(&blurred_rgb, color_thief::ColorFormat::Rgb, 10, 2)?[0];
         let mut vec = unsafe { Vec::from_raw_parts(std::mem::transmute::<*mut u8, *mut [u8; 3]>(blurred_rgb.as_mut_ptr()), size, size) };
-        let amount = if blur_amount.is_finite() { blur_amount.clamp(0., 1.) } else { 0.5 };
-        let radius = if amount <= 0.5 {
-            amount * 100.
-        } else {
-            50. + (amount - 0.5) * 2. * (w.min(h) as f32 * 0.5).max(50.)
-        };
+        let radius = gameplay_blur_radius(blur_amount, w.min(h));
         if radius > 0. {
             fastblur::gaussian_blur(&mut vec, w as _, h as _, radius);
         }
