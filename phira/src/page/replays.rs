@@ -1,8 +1,6 @@
 prpr_l10n::tl_file!("settings");
 
-use super::{
-    request_export, resolve_export, take_export, ExportConfig, Page, SharedState,
-};
+use super::{request_export, resolve_export, take_export, ExportConfig, Page, SharedState};
 use crate::replay::library::{self, ReplayItem};
 use anyhow::Result;
 use macroquad::prelude::*;
@@ -179,21 +177,18 @@ impl Page for ReplayLibraryPage {
             if let Some(item) = self.selected_item() {
                 let file = item.file.clone();
                 self.delete_file = Some(file);
-                Dialog::plain(
-                    tl!("replay-library-delete-title"),
-                    tl!("replay-library-delete-confirm"),
-                )
-                .buttons(vec![tl!("cancel").into_owned(), tl!("confirm").into_owned()])
-                .listener({
-                    let confirm = Arc::clone(&self.delete_confirm);
-                    move |_dialog, id| {
-                        if id == 1 {
-                            confirm.store(true, Ordering::Release);
+                Dialog::plain(tl!("replay-library-delete-title"), tl!("replay-library-delete-confirm"))
+                    .buttons(vec![tl!("cancel").into_owned(), tl!("confirm").into_owned()])
+                    .listener({
+                        let confirm = Arc::clone(&self.delete_confirm);
+                        move |_dialog, id| {
+                            if id == 1 {
+                                confirm.store(true, Ordering::Release);
+                            }
+                            false
                         }
-                        false
-                    }
-                })
-                .show();
+                    })
+                    .show();
             }
             return Ok(true);
         }
@@ -236,17 +231,17 @@ impl Page for ReplayLibraryPage {
             let action_y = button_y + 0.09;
             let action_w = (area.w - 0.10) / 3.;
             let selected = self.selected_item();
-            let keep_label = selected.map(|item| {
-                if item.keep { tl!("replay-library-unkeep") } else { tl!("replay-library-keep") }
-            }).unwrap_or_else(|| tl!("replay-library-select"));
-            self.keep_btn.render_text(
-                ui,
-                Rect::new(area.x + 0.025, action_y, action_w, 0.07),
-                t,
-                keep_label,
-                0.28,
-                selected.is_some(),
-            );
+            let keep_label = selected
+                .map(|item| {
+                    if item.keep {
+                        tl!("replay-library-unkeep")
+                    } else {
+                        tl!("replay-library-keep")
+                    }
+                })
+                .unwrap_or_else(|| tl!("replay-library-select"));
+            self.keep_btn
+                .render_text(ui, Rect::new(area.x + 0.025, action_y, action_w, 0.07), t, keep_label, 0.28, selected.is_some());
             self.delete_btn.render_text(
                 ui,
                 Rect::new(area.x + 0.05 + action_w, action_y, action_w, 0.07),
@@ -301,7 +296,11 @@ impl Page for ReplayLibraryPage {
                             item.player.as_deref().unwrap_or(tl!("replay-library-unknown-player").as_ref()),
                             item.version,
                             item.size,
-                            if item.keep { tl!("replay-library-kept") } else { tl!("replay-library-local") }
+                            if item.keep {
+                                tl!("replay-library-kept")
+                            } else {
+                                tl!("replay-library-local")
+                            }
                         ),
                         0.26,
                         self.selected == Some(index),
