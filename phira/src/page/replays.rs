@@ -94,7 +94,7 @@ impl Page for ReplayLibraryPage {
             self.refresh_btn.render_text(
                 ui,
                 Rect::new(area.x + 0.055 + button_w, button_y, button_w, 0.075),
-                s.t,
+                t,
                 tl!("replay-library-refresh"),
                 0.34,
                 false,
