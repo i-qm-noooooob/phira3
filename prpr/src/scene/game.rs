@@ -1435,12 +1435,7 @@ impl Scene for GameScene {
                 self.gl.flush();
                 push_camera_state();
                 set_camera(&ui.camera());
-                crate::ui::draw_fps_overlay(
-                    ui,
-                    1.0 / frame_time,
-                    self.res.config.fps_position as u32,
-                    [0.0; 4],
-                );
+                crate::ui::draw_fps_overlay(ui, 1.0 / frame_time, self.res.config.fps_position as u32, [0.0; 4]);
                 self.gl.flush();
                 pop_camera_state();
             }
