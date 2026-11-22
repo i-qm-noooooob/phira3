@@ -6,7 +6,7 @@ use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     fs,
-    io::Write,
+    io::{Read, Write},
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
@@ -109,7 +109,11 @@ fn item_from_bytes(root: &Path, file: String, bytes: &[u8], index: &Index) -> Re
     let decoded = super::storage::decode(bytes)?;
     let name = metadata_value(&decoded.payload, "name");
     let player = metadata_value(&decoded.payload, "player");
-    let recorded_at = decoded.payload.get("meta").and_then(|m| m.get("recorded_at")).and_then(Value::as_i64);
+    let recorded_at = decoded
+        .payload
+        .get("meta")
+        .and_then(|m| m.get("recorded_at"))
+        .and_then(Value::as_i64);
     let entry = index.get(&file);
     let imported_at = entry.map(|e| e.imported_at).unwrap_or(0);
     let keep = entry.is_some_and(|e| e.keep);
@@ -214,7 +218,11 @@ pub fn import(source: &Path) -> Result<(ReplayItem, bool)> {
 /// Import a single replay or a ZIP package containing replay files.
 /// The complete archive is staged and validated before any library entry is committed.
 pub fn import_package(source: &Path) -> Result<Vec<(ReplayItem, bool)>> {
-    if !source.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("zip")) {
+    if !source
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("zip"))
+    {
         return Ok(vec![import(source)?]);
     }
 
@@ -230,24 +238,36 @@ pub fn import_package(source: &Path) -> Result<Vec<(ReplayItem, bool)>> {
         if entry.is_dir() {
             continue;
         }
-        let relative = entry.enclosed_name().context("Replay package contains an invalid path")?;
+        let relative = entry
+            .enclosed_name()
+            .context("Replay package contains an invalid path")?;
         let extension = relative.extension().and_then(|e| e.to_str()).unwrap_or_default();
         anyhow::ensure!(
             matches!(extension.to_ascii_lowercase().as_str(), "phirarec" | "phirar" | "ppr"),
             "Replay package contains a non-replay file"
         );
         let declared = entry.size();
-        anyhow::ensure!(declared <= super::storage::MAX_FILE_BYTES as u64, "A replay in the package exceeds 128 MiB");
-        total = total.checked_add(declared).context("Replay package size overflow")?;
-        anyhow::ensure!(total <= 512 * 1024 * 1024, "Replay package expands beyond 512 MiB");
+        anyhow::ensure!(
+            declared <= super::storage::MAX_FILE_BYTES as u64,
+            "A replay in the package exceeds 128 MiB"
+        );
+        total = total
+            .checked_add(declared)
+            .context("Replay package size overflow")?;
+        anyhow::ensure!(
+            total <= 512 * 1024 * 1024,
+            "Replay package expands beyond 512 MiB"
+        );
 
         let mut bytes = Vec::with_capacity(declared as usize);
         entry
-            .by_ref()
             .take(super::storage::MAX_FILE_BYTES as u64 + 1)
             .read_to_end(&mut bytes)
             .context("Failed to extract replay from package")?;
-        anyhow::ensure!(bytes.len() as u64 == declared, "Replay package entry size mismatch");
+        anyhow::ensure!(
+            bytes.len() as u64 == declared,
+            "Replay package entry size mismatch"
+        );
         super::storage::decode(&bytes).context("Replay package contains an invalid replay")?;
 
         let staged_path = temp.path().join(format!("{i}.phirarec"));
