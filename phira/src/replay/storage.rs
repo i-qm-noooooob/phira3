@@ -134,18 +134,25 @@ impl ReplayTape {
     }
 
     fn validate(&self) -> Result<()> {
-        anyhow::ensure!(self.frames.len() <= MAX_EVENTS && self.touches.len() <= MAX_EVENTS && self.judges.len() <= MAX_EVENTS, "Replay contains too many events");
+        anyhow::ensure!(
+            self.frames.len() <= MAX_EVENTS && self.touches.len() <= MAX_EVENTS && self.judges.len() <= MAX_EVENTS,
+            "Replay contains too many events"
+        );
         anyhow::ensure!(self.offset.is_finite(), "Replay offset is invalid");
         anyhow::ensure!(self.speed.is_finite() && self.speed > 0. && self.speed <= 16., "Replay speed is invalid");
         anyhow::ensure!(self.aspect_ratio.is_none_or(|v| v.is_finite() && v > 0. && v <= 10.), "Replay aspect ratio is invalid");
         let valid_time = |t: f64| t.is_finite() && (-3600. ..=86400.).contains(&t);
         anyhow::ensure!(self.frames.iter().all(|t| valid_time(*t)), "Replay contains an invalid frame timestamp");
         anyhow::ensure!(
-            self.touches.iter().all(|e| valid_time(e.t as f64) && e.phase <= 2 && e.x.is_finite() && e.y.is_finite()),
+            self.touches
+                .iter()
+                .all(|e| valid_time(e.t as f64) && e.phase <= 2 && e.x.is_finite() && e.y.is_finite()),
             "Replay contains an invalid touch event"
         );
         anyhow::ensure!(
-            self.judges.iter().all(|e| valid_time(e.t) && e.kind <= 9 && e.diff.is_finite()
+            self.judges.iter().all(|e| valid_time(e.t)
+                && e.kind <= 9
+                && e.diff.is_finite()
                 && e.head_grade.is_none_or(|g| matches!(g, 0 | 1 | 2 | 3 | 4 | 7 | 8 | 9))),
             "Replay contains an invalid judgement event"
         );
