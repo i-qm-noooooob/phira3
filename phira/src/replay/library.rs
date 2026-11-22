@@ -291,6 +291,20 @@ fn delete_in(root: &Path, file: &str) -> Result<()> {
     write_index(root, &index)
 }
 
+/// Export a library replay to a caller-provided writer (for platform save pickers).
+pub fn export_to_writer(file: &str, writer: &mut impl Write) -> Result<()> {
+    let root = root()?;
+    anyhow::ensure!(valid_file_name(file), "Invalid replay file name");
+    let source = root.join(file);
+    let metadata = fs::symlink_metadata(&source).context("Replay does not exist")?;
+    anyhow::ensure!(metadata.file_type().is_file(), "Replay is not a regular file");
+    anyhow::ensure!(metadata.len() <= super::storage::MAX_FILE_BYTES as u64, "Replay file exceeds 128 MiB");
+    let bytes = fs::read(source)?;
+    super::storage::decode(&bytes)?;
+    writer.write_all(&bytes)?;
+    Ok(())
+}
+
 /// Export a library replay without changing or deleting its source.
 pub fn export(file: &str, destination: &Path) -> Result<()> {
     export_from(&root()?, file, destination)
