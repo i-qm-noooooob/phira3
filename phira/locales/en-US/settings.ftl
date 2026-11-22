@@ -132,3 +132,10 @@ item-show-perfect-combo = Show perfect combo
 item-show-perfect-combo-sub = Display PERFECT COMBO below the combo count; visual only.
 item-combo-text = Combo text
 item-combo-text-sub = Custom label below the combo count; maximum 16 characters.
+
+fps-pos-top-center = Top center
+fps-pos-bottom-center = Bottom center
+fps-pos-top-left = Top left
+fps-pos-top-right = Top right
+fps-pos-bottom-left = Bottom left
+fps-pos-bottom-right = Bottom right
