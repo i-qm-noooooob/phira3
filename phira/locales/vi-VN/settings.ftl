@@ -130,3 +130,10 @@ fps-pos-top-left = Góc trên bên trái
 fps-pos-top-right = Góc trên bên phải
 fps-pos-bottom-left = Góc dưới bên trái
 fps-pos-bottom-right = Góc dưới bên phải
+
+item-quality-preset = Chế độ chất lượng đồ họa
+item-quality-preset-sub = Chuyển giữa các cấu hình hiển thị nhẹ và sắc nét hơn.
+quality-preset-low = Thấp
+quality-preset-standard = Tiêu chuẩn
+quality-preset-high = Cao
+quality-preset-custom = Tùy chỉnh
