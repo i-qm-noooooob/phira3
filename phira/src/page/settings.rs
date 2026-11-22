@@ -1416,7 +1416,9 @@ mod tests {
 
 #[cfg(test)]
 mod quality_preset_tests {
-    use super::{apply_quality_preset, quality_preset_index};
+    use super::{
+        antialiasing_index, apply_antialiasing, apply_quality_preset, quality_preset_index,
+    };
     use prpr::config::Config;
 
     #[test]
