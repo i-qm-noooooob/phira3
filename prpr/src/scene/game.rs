@@ -43,6 +43,44 @@ use tracing::{debug, warn};
 
 const PAUSE_CLICK_INTERVAL: f32 = 0.7;
 
+/// Returns sanitized visual-only touch marker settings.
+fn touch_point_style(config: &Config) -> (f32, f32, u32) {
+    let size = if config.touch_point_size.is_finite() {
+        config.touch_point_size.clamp(0.01, 0.15)
+    } else {
+        0.04
+    };
+    let alpha = if config.touch_point_alpha.is_finite() {
+        config.touch_point_alpha.clamp(0.0, 1.0)
+    } else {
+        0.4
+    };
+    (size, alpha, config.touch_point_color & 0x00ff_ffff)
+}
+
+#[cfg(test)]
+mod touch_point_style_tests {
+    use super::*;
+
+    #[test]
+    fn touch_style_clamps_values_and_masks_color() {
+        let mut config = Config::default();
+        config.touch_point_size = 2.0;
+        config.touch_point_alpha = -1.0;
+        config.touch_point_color = 0xff12_3456;
+        assert_eq!(touch_point_style(&config), (0.15, 0.0, 0x12_3456));
+    }
+
+    #[test]
+    fn touch_style_uses_defaults_for_non_finite_values() {
+        let mut config = Config::default();
+        config.touch_point_size = f32::NAN;
+        config.touch_point_alpha = f32::INFINITY;
+        assert_eq!(touch_point_style(&config), (0.04, 0.4, 0xff3b30));
+    }
+}
+
+
 #[rustfmt::skip]
 #[cfg(closed)]
 mod inner;
@@ -834,13 +872,15 @@ impl GameScene {
                 ui.text(t.to_string()).anchor(0.5, 0.5).size(1.).color(c).draw();
             }
         }
+        let (touch_size, touch_alpha, touch_color) = touch_point_style(&self.res.config);
         if self.res.config.touch_debug {
+            let color = Color { a: touch_alpha, ..Color::from_hex_rgb(touch_color) };
             for touch in Judge::get_touches() {
-                ui.fill_circle(touch.position.x, touch.position.y, 0.04, Color { a: 0.4, ..RED });
+                ui.fill_circle(touch.position.x, touch.position.y, touch_size, color);
             }
         }
         for pos in &self.touch_points {
-            ui.fill_circle(pos.0, pos.1, 0.04, Color { a: 0.4, ..BLUE });
+            ui.fill_circle(pos.0, pos.1, touch_size, Color { a: touch_alpha, ..BLUE });
         }
         Ok(())
     }
