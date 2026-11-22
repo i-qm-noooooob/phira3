@@ -16,7 +16,7 @@ The integration branch is based on the official Phira tree. Keep `main` unchange
 3. Practice features that alter speed, judgement windows, timing, or gameplay modifiers must run as local/unranked sessions and must not submit ranked scores.
 4. Preserve official multiplayer and monitor components even where the Pro tree does not contain equivalent files.
 5. Preserve RPEN license and notice files if RPEN components are ported.
-6. Android ARMv7 support requires validating Rust target, NDK, JNI dependencies, FFmpeg and native libraries together; changing Gradle ABI filters alone is insufficient.
+6. Release order: complete and validate the ARM64 build first. Only after the ARM64 feature set is stable, port and validate ARMv7 (32-bit) across Rust target, NDK, JNI dependencies, FFmpeg and native libraries; changing Gradle ABI filters alone is insufficient.
 
 ## Port order
 
@@ -26,8 +26,9 @@ The integration branch is based on the official Phira tree. Keep `main` unchange
 4. Port replay features, ensuring replay compatibility and no score submission side effects.
 5. Port practice features behind an explicit unranked-session boundary.
 6. Port plugins and chart-video export after dependency and licensing review.
-7. Port Android-specific features and validate both ARM64 and ARMv7.
-8. Run tests/builds and document device-level limitations.
+7. Complete Android integration and produce a tested ARM64 APK first.
+8. After ARM64 is stable, add ARMv7 (32-bit) support and validate all native dependencies as a separate phase.
+9. Run tests/builds and document device-level limitations.
 
 ## Current status
 
@@ -37,7 +38,7 @@ The integration branch is based on the official Phira tree. Keep `main` unchange
 - Implemented isolated, visual/settings-only features on this branch: FPS overlay and six positions; custom combo label; Perfect Combo label; gameplay background blur and dim; touch-point color/opacity/size; localized gameplay settings; Low/Standard/High quality presets; and an anti-aliasing selector (Off/FXAA/MSAA 2x).
 - These changes intentionally leave the official judgement and score pipeline untouched. Practice-affecting and score-affecting Pro features have not been ported.
 - Latest visual/settings validation before replay work: CI run [45008490282](https://github.com/i-qm-noooooob/phira3/actions/runs/45008490282) passed Tests, Format, Clippy Linux, Clippy macOS, and Clippy iOS (5/5).
-- Android APK build, ARMv7 native dependency validation, and physical-device testing have not yet been completed.
+- User-approved delivery order: finish ARM64 first; only then complete ARMv7 (32-bit). Neither APK/device validation phase has been completed yet.
 - Performance-settings review found Pro-only shader and font-atlas optimizations require their full rendering/platform support; these are not being exposed as settings until that support is ported and validated.
 
 
@@ -54,8 +55,8 @@ Important compatibility constraints from the Pro replay design:
 
 The first isolated storage slice is implemented in `phira/src/replay/storage.rs`: bounded decoding for JSON/Zstandard v5/v6, binary Pro v3/v4, and JPhiraRec v0/v1 (uncompressed, Zstandard, and DEFLATE). The parser enforces a 128 MiB input/decompression cap, 2,000,000-event caps, bounded ULEB128/string reads, and rejects malformed/truncated payloads. Legacy parsing normalizes data into JSON for inspection only; it is not yet wired to the complete Replay model or playback scene.
 
-A local Replay Library slice is connected from Chart settings. It can import a single `.phirarec`, `.phirar`, or `.ppr` file, or a ZIP package; list valid local replay metadata; refresh; mark a file to keep; delete after confirmation; and export through the platform save picker. Imports are SHA-256 deduplicated and remain outside score history/upload paths. The index and archive readers are size/entry bounded. The library UI currently shows only the first visible page of items and has no search/filter or playback action.
+A local Replay Library slice is connected from Chart settings. It can import a single `.phirarec`, `.phirar`, or `.ppr` file, or a ZIP package; list valid local replay metadata; refresh; mark a file to keep; delete after confirmation; and export through the platform save picker. Imports are SHA-256 deduplicated and remain outside score history/upload paths. The index and archive readers are size/entry bounded. The library UI currently shows only the first visible page of items and has no search/filter or playback action. A chart-match action has since been added; it compares chart/audio fingerprints where available and labels legacy path/ID matches as unverified.
 
-The storage layer now also deserializes a typed replay preview model before library listing/import. It validates speed, offset, aspect ratio, frame timestamps, touch phases/coordinates, judgement kinds, head grades, and event limits; it records whether legacy event ordering needed repair and stably sorts frames/touches/judgements for later playback. Pro-only capture/settings/gameplay extension objects remain opaque. This is not yet the full Pro Replay model and does not yet match a replay to its chart or instantiate a playback scene.
+The storage layer now also deserializes a typed replay preview model before library listing/import. It validates speed, offset, aspect ratio, frame timestamps, touch phases/coordinates, judgement kinds, head grades, and event limits; it records whether legacy event ordering needed repair and stably sorts frames/touches/judgements for later playback. Pro-only capture/settings/gameplay extension objects remain opaque. This is not yet the full Pro Replay model and does not instantiate a playback scene. The Pro reference playback uses `GameMode::View`, applies recorded judgement events to the existing chart/judge display state, and advances visual/touch state separately; the port must first add only the missing replay-view APIs, without copying Pro score-service or judgement-pipeline changes.
 
-Validation for the typed decoder and Replay Library code: CI run [45022671384](https://github.com/i-qm-noooooob/phira3/actions/runs/45022671384) passed Format, Tests, Clippy Linux, Clippy macOS, and Clippy iOS (5/5), covering commit `1946de33bb6d8b080335ee0a46e50ad82756bdf0`. No Android APK or ARMv7 device test has been performed. Do not treat this as end-to-end replay support.
+Latest replay chart-matching slice is on commit `c4901c8f4984fa8587b5c4a9c62b04e3f425b879`, CI run [45023668304](https://github.com/i-qm-noooooob/phira3/actions/runs/45023668304): Tests, Clippy Linux, Clippy iOS and Format passed; Clippy macOS was still in progress at the last check. No Android APK or device test has been performed. Do not treat this as end-to-end replay support.
