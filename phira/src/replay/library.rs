@@ -268,7 +268,7 @@ pub fn set_keep(file: &str, keep: bool) -> Result<()> {
 fn set_keep_in(root: &Path, file: &str, keep: bool) -> Result<()> {
     anyhow::ensure!(valid_file_name(file), "Invalid replay file name");
     let path = root.join(file);
-    anyhow::ensure!(path.is_file() && path.parent() == Some(root.as_path()), "Replay does not exist in this library");
+    anyhow::ensure!(path.is_file() && path.parent() == Some(root), "Replay does not exist in this library");
     let mut index = read_index(root)?;
     index.entry(file.to_owned()).or_default().keep = keep;
     write_index(root, &index)
