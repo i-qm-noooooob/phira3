@@ -349,9 +349,7 @@ impl Scene for ReplayScene {
             return Ok(true);
         }
         if self.rate_button.touch(touch, t) {
-            let rates = transport::RATES;
-            let current = rates.iter().position(|rate| (*rate as f64 - self.playback_rate).abs() < 1e-6).unwrap_or(4);
-            self.playback_rate = rates[(current + 1) % rates.len()] as f64;
+            self.playback_rate = transport::next_rate(self.playback_rate);
             self.game.set_replay_playback_rate(self.playback_rate, self.current, self.playing)?;
             return Ok(true);
         }
