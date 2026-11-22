@@ -6,6 +6,7 @@ prpr_l10n::tl_file!("settings");
 use crate::{
     replay::{
         library,
+        transport,
         storage::{ReplayChartRef, ReplayTape},
     },
     scene::fs_from_path,
@@ -37,6 +38,12 @@ pub struct ReplayScene {
     back_button: DRectButton,
     backward_button: DRectButton,
     forward_button: DRectButton,
+    mark_a_button: DRectButton,
+    mark_b_button: DRectButton,
+    loop_button: DRectButton,
+    loop_a: Option<f64>,
+    loop_b: Option<f64>,
+    loop_enabled: bool,
     exit: bool,
 }
 
@@ -130,6 +137,12 @@ impl ReplayScene {
             back_button: DRectButton::new(),
             backward_button: DRectButton::new(),
             forward_button: DRectButton::new(),
+            mark_a_button: DRectButton::new(),
+            mark_b_button: DRectButton::new(),
+            loop_button: DRectButton::new(),
+            loop_a: None,
+            loop_b: None,
+            loop_enabled: false,
             exit: false,
         })
     }
@@ -275,6 +288,25 @@ impl Scene for ReplayScene {
             self.seek_by(5.)?;
             return Ok(true);
         }
+        if self.mark_a_button.touch(touch, t) {
+            self.loop_a = Some(self.current);
+            self.loop_enabled = false;
+            return Ok(true);
+        }
+        if self.mark_b_button.touch(touch, t) {
+            self.loop_b = Some(self.current);
+            self.loop_enabled = false;
+            return Ok(true);
+        }
+        if self.loop_button.touch(touch, t) {
+            self.loop_enabled = !self.loop_enabled && self.loop_a.is_some_and(|a| self.loop_b.is_some_and(|b| b - a >= 0.05));
+            if self.loop_enabled && self.current >= self.loop_b.unwrap_or(f64::INFINITY) {
+                if let Some(target) = transport::loop_target(self.current, self.loop_a, self.loop_b, true) {
+                    self.seek_by(target - self.current)?;
+                }
+            }
+            return Ok(true);
+        }
         if self.play_button.touch(touch, t) {
             self.toggle_playback()?;
             return Ok(true);
@@ -288,6 +320,9 @@ impl Scene for ReplayScene {
         self.last_real = real;
         if self.playing {
             self.current += delta * self.game.res.config.speed as f64;
+            if let Some(target) = transport::loop_target(self.current, self.loop_a, self.loop_b, self.loop_enabled) {
+                self.seek_by(target - self.current)?;
+            }
             let end = self.game.res.track_length.max(0.);
             if self.current >= end {
                 self.current = end;
@@ -326,6 +361,32 @@ impl Scene for ReplayScene {
         }
         let area = ui.content_rect();
         let y = area.y + area.h - 0.09;
+        let marker_y = y - 0.075;
+        let marker_w = (area.w - 0.10) / 3.;
+        self.mark_a_button.render_text(
+            ui,
+            Rect::new(area.x + 0.025, marker_y, marker_w, 0.055),
+            tm.now() as f32,
+            format!("A {}", self.loop_a.map(|v| format!("{v:.1}s")).unwrap_or_else(|| "—".to_owned())),
+            0.23,
+            true,
+        );
+        self.mark_b_button.render_text(
+            ui,
+            Rect::new(area.x + 0.05 + marker_w, marker_y, marker_w, 0.055),
+            tm.now() as f32,
+            format!("B {}", self.loop_b.map(|v| format!("{v:.1}s")).unwrap_or_else(|| "—".to_owned())),
+            0.23,
+            true,
+        );
+        self.loop_button.render_text(
+            ui,
+            Rect::new(area.x + 0.075 + marker_w * 2., marker_y, marker_w, 0.055),
+            tm.now() as f32,
+            if self.loop_enabled { "A–B ON" } else { "A–B OFF" },
+            0.23,
+            self.loop_a.is_some_and(|a| self.loop_b.is_some_and(|b| b - a >= 0.05)),
+        );
         let w = (area.w - 0.14) / 4.;
         self.back_button
             .render_text(ui, Rect::new(area.x + 0.02, y, w, 0.07), tm.now() as f32, tl!("replay-back"), 0.28, true);
