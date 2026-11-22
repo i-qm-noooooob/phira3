@@ -3,11 +3,12 @@ prpr_l10n::tl_file!("settings");
 use super::{request_export, resolve_export, take_export, ExportConfig, Page, SharedState};
 use crate::replay::library::{self, ReplayItem};
 use anyhow::Result;
+use inputbox::InputBox;
 use macroquad::prelude::*;
 use prpr::{
     ext::{poll_future, semi_black, LocalTask, RectExt},
-    scene::{request_file, show_error, NextScene},
-    ui::{DRectButton, Dialog, Ui},
+    scene::{request_file, request_input, show_error, take_input, NextScene},
+    ui::{button_hit, DRectButton, Dialog, RectButton, Ui},
 };
 use std::{
     borrow::Cow,
@@ -36,6 +37,9 @@ pub struct ReplayLibraryPage {
     selected: Option<usize>,
     import_btn: DRectButton,
     refresh_btn: DRectButton,
+    search_btn: DRectButton,
+    search_clear_btn: RectButton,
+    search: String,
     keep_btn: DRectButton,
     delete_btn: DRectButton,
     export_btn: DRectButton,
@@ -65,6 +69,9 @@ impl ReplayLibraryPage {
             selected: None,
             import_btn: DRectButton::new(),
             refresh_btn: DRectButton::new(),
+            search_btn: DRectButton::new(),
+            search_clear_btn: RectButton::new(),
+            search: String::new(),
             keep_btn: DRectButton::new(),
             delete_btn: DRectButton::new(),
             export_btn: DRectButton::new(),
@@ -90,11 +97,23 @@ impl ReplayLibraryPage {
                 self.items = items;
                 self.item_buttons.resize_with(self.items.len(), DRectButton::new);
                 self.selected = self.selected.filter(|index| *index < self.items.len());
-                self.visible_start = self.visible_start.min(self.items.len().saturating_sub(1));
+                self.visible_start = self.visible_start.min(self.filtered_indices().len().saturating_sub(1));
                 self.error = None;
             }
             Err(err) => self.error = Some(err.to_string()),
         }
+    }
+
+    fn filtered_indices(&self) -> Vec<usize> {
+        let query = self.search.trim().to_lowercase();
+        self.items.iter().enumerate().filter_map(|(index, item)| {
+            let matches = query.is_empty() || [
+                item.chart_name.as_deref().unwrap_or_default(),
+                item.player.as_deref().unwrap_or_default(),
+                item.file.as_str(),
+            ].iter().any(|value| value.to_lowercase().contains(&query));
+            matches.then_some(index)
+        }).collect()
     }
 
     fn selected_item(&self) -> Option<&ReplayItem> {
@@ -115,6 +134,14 @@ impl Page for ReplayLibraryPage {
     }
 
     fn update(&mut self, _s: &mut SharedState) -> Result<()> {
+        if let Some((id, value)) = take_input() {
+            if id == "replay-search" {
+                self.search = value;
+                self.visible_start = 0;
+                self.selected = None;
+                self.status = None;
+            }
+        }
         if DIRTY.swap(false, Ordering::AcqRel) {
             self.reload();
         }
@@ -216,6 +243,18 @@ impl Page for ReplayLibraryPage {
             self.visible_start = (self.visible_start + self.page_size).min(self.items.len().saturating_sub(1));
             return Ok(true);
         }
+        if !self.search.is_empty() && self.search_clear_btn.touch(touch) {
+            button_hit();
+            self.search.clear();
+            self.visible_start = 0;
+            self.selected = None;
+            self.status = None;
+            return Ok(true);
+        }
+        if !self.search_clear_btn.contains(touch.position) && self.search_btn.touch(touch, t) {
+            request_input("replay-search", InputBox::new().default_text(&self.search));
+            return Ok(true);
+        }
         if self.import_btn.touch(touch, t) {
             request_file("_import_replay");
             return Ok(true);
@@ -285,9 +324,10 @@ impl Page for ReplayLibraryPage {
             return Ok(true);
         }
 
+        let filtered = self.filtered_indices();
         for (slot, button) in self.item_buttons.iter_mut().take(self.visible_items).enumerate() {
             if button.touch(touch, t) {
-                self.selected = Some(self.visible_start + slot);
+                self.selected = filtered.get(self.visible_start + slot).copied();
                 return Ok(true);
             }
         }
@@ -321,7 +361,15 @@ impl Page for ReplayLibraryPage {
                 false,
             );
 
-            let action_y = button_y + 0.09;
+            let search_y = button_y + 0.09;
+            let search_rect = Rect::new(area.x + 0.025, search_y, area.w - 0.05, 0.065);
+            self.search_btn.render_text(ui, search_rect, t, if self.search.is_empty() { tl!("replay-library-search") } else { self.search.as_str() }, 0.28, false);
+            if !self.search.is_empty() {
+                let clear_rect = Rect::new(search_rect.right() - search_rect.h, search_rect.y, search_rect.h, search_rect.h);
+                ui.text("×").pos(clear_rect.center().x, clear_rect.center().y).anchor(0.5, 0.5).size(0.35).draw();
+                self.search_clear_btn.set(ui, clear_rect);
+            }
+            let action_y = search_y + 0.075;
             let action_w = (area.w - 0.15) / 5.;
             let (has_selected, keep_label) = self
                 .selected_item()
@@ -384,13 +432,14 @@ impl Page for ReplayLibraryPage {
                     .draw();
                 y += 0.08;
             }
-            ui.text(format!("{} {}", self.items.len(), tl!("replay-library-count")))
+            let filtered = self.filtered_indices();
+            ui.text(format!("{} / {} {}", filtered.len(), self.items.len(), tl!("replay-library-count")))
                 .pos(area.x + 0.025, y)
                 .size(0.32)
                 .draw();
             y += 0.055;
 
-            if self.items.is_empty() {
+            if filtered.is_empty() {
                 ui.text(tl!("replay-library-empty"))
                     .pos(area.x + 0.025, y)
                     .size(0.31)
@@ -400,9 +449,10 @@ impl Page for ReplayLibraryPage {
                 let line_h = 0.09;
                 let available = ((area.bottom() - y - 0.10) / line_h).floor().max(0.) as usize;
                 self.page_size = available.max(1);
-                self.visible_items = self.page_size.min(self.items.len().saturating_sub(self.visible_start));
-                for (slot, item) in self.items.iter().skip(self.visible_start).take(self.visible_items).enumerate() {
-                    let index = self.visible_start + slot;
+                self.visible_start = self.visible_start.min(filtered.len().saturating_sub(1));
+                self.visible_items = self.page_size.min(filtered.len().saturating_sub(self.visible_start));
+                for (slot, index) in filtered.iter().copied().skip(self.visible_start).take(self.visible_items).enumerate() {
+                    let item = &self.items[index];
                     let rect = Rect::new(area.x + 0.015, y, area.w - 0.03, line_h - 0.008);
                     self.item_buttons[index].render_text(
                         ui,
@@ -425,9 +475,9 @@ impl Page for ReplayLibraryPage {
                     );
                     y += line_h;
                 }
-                if self.items.len() > self.visible_items {
+                if filtered.len() > self.visible_items {
                     let page = self.visible_start / self.page_size + 1;
-                    let pages = self.items.len().div_ceil(self.page_size);
+                    let pages = filtered.len().div_ceil(self.page_size);
                     ui.text(format!("{page}/{pages}"))
                         .pos(area.x + area.w * 0.45, area.bottom() - 0.045)
                         .size(0.25)
@@ -446,7 +496,7 @@ impl Page for ReplayLibraryPage {
                         t,
                         "›",
                         0.28,
-                        self.visible_start + self.visible_items < self.items.len(),
+                        self.visible_start + self.visible_items < filtered.len(),
                     );
                 }
             }
