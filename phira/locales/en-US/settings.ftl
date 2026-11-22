@@ -119,3 +119,6 @@ item-touch-color-sub = Cycle through marker colors; reset restores the default.
 item-touch-alpha = Touch Point Opacity
 item-touch-size = Touch Point Size
 color-reset = Reset
+item-fixed-background = Fixed gameplay background dim
+item-fixed-background-sub = Use your chosen dim instead of the beatmap's background setting.
+item-background-dim = Background dim
