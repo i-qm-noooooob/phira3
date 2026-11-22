@@ -77,7 +77,7 @@ mod combo_label_tests {
         let mut config = Config::default();
         config.show_perfect_combo = true;
         config.combo_text = "CUSTOM".to_owned();
-        assert_eq!(combo_label(&config), "PERFECT\\u{a0}COMBO");
+        assert_eq!(combo_label(&config), "PERFECT\u{a0}COMBO");
         assert!(!config.autoplay());
     }
 
