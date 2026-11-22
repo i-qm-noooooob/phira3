@@ -15,7 +15,6 @@ use prpr::{
     time::TimeManager,
     ui::{DRectButton, Ui},
 };
-use std::path::PathBuf;
 
 pub struct ReplayScene {
     game: GameScene,
