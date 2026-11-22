@@ -91,9 +91,9 @@ mod tests {
 
     #[test]
     fn playback_rate_cycles_through_supported_values() {
-        assert_eq!(next_rate(1.0), 1.5);
-        assert_eq!(next_rate(3.0), 0.1);
-        assert_eq!(next_rate(99.0), 1.5);
+        assert!((next_rate(1.0) - 1.5).abs() < 1e-6);
+        assert!((next_rate(3.0) - 0.1).abs() < 1e-6);
+        assert!((next_rate(99.0) - 1.5).abs() < 1e-6);
     }
 
     #[test]
