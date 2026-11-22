@@ -113,3 +113,13 @@ color-reset = Đặt lại
 item-fixed-background = Cố định độ tối nền gameplay
 item-fixed-background-sub = Dùng mức độ tối bạn chọn thay cho thiết lập nền của beatmap.
 item-background-dim = Độ tối nền
+
+item-show-fps-overlay = Hiển thị FPS
+item-fps-position = Vị trí FPS
+item-fps-position-sub = Chạm để chuyển qua sáu vị trí.
+item-gameplay-background-blur = Độ mờ nền gameplay
+item-gameplay-background-blur-sub = 0 = không mờ, 0.5 = mặc định, 1 = mờ tối đa.
+item-show-perfect-combo = Hiển thị Perfect Combo
+item-show-perfect-combo-sub = Hiển thị PERFECT COMBO bên dưới số combo; chỉ thay đổi giao diện.
+item-combo-text = Nội dung Combo
+item-combo-text-sub = Nhãn tùy chỉnh bên dưới số combo; tối đa 16 ký tự.
