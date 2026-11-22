@@ -1396,4 +1396,3 @@ mod quality_preset_tests {
         assert_eq!(quality_preset_index(&config), None);
     }
 }
-
