@@ -29,6 +29,9 @@ pub struct ReplayLibraryPage {
     items: Vec<ReplayItem>,
     item_buttons: Vec<DRectButton>,
     visible_items: usize,
+    visible_start: usize,
+    prev_page_btn: DRectButton,
+    next_page_btn: DRectButton,
     selected: Option<usize>,
     import_btn: DRectButton,
     refresh_btn: DRectButton,
@@ -54,6 +57,9 @@ impl ReplayLibraryPage {
             items: Vec::new(),
             item_buttons: Vec::new(),
             visible_items: 0,
+            visible_start: 0,
+            prev_page_btn: DRectButton::new(),
+            next_page_btn: DRectButton::new(),
             selected: None,
             import_btn: DRectButton::new(),
             refresh_btn: DRectButton::new(),
@@ -82,6 +88,7 @@ impl ReplayLibraryPage {
                 self.items = items;
                 self.item_buttons.resize_with(self.items.len(), DRectButton::new);
                 self.selected = self.selected.filter(|index| *index < self.items.len());
+                self.visible_start = self.visible_start.min(self.items.len().saturating_sub(1));
                 self.error = None;
             }
             Err(err) => self.error = Some(err.to_string()),
@@ -199,6 +206,14 @@ impl Page for ReplayLibraryPage {
 
     fn touch(&mut self, touch: &Touch, s: &mut SharedState) -> Result<bool> {
         let t = s.t;
+        if self.prev_page_btn.touch(touch, t) {
+            self.visible_start = self.visible_start.saturating_sub(self.visible_items.max(1));
+            return Ok(true);
+        }
+        if self.next_page_btn.touch(touch, t) {
+            self.visible_start = (self.visible_start + self.visible_items.max(1)).min(self.items.len().saturating_sub(1));
+            return Ok(true);
+        }
         if self.import_btn.touch(touch, t) {
             request_file("_import_replay");
             return Ok(true);
@@ -268,9 +283,9 @@ impl Page for ReplayLibraryPage {
             return Ok(true);
         }
 
-        for (index, button) in self.item_buttons.iter_mut().take(self.visible_items).enumerate() {
+        for (slot, button) in self.item_buttons.iter_mut().take(self.visible_items).enumerate() {
             if button.touch(touch, t) {
-                self.selected = Some(index);
+                self.selected = Some(self.visible_start + slot);
                 return Ok(true);
             }
         }
@@ -381,9 +396,10 @@ impl Page for ReplayLibraryPage {
                     .draw();
             } else {
                 let line_h = 0.09;
-                let available = ((area.bottom() - y - 0.02) / line_h).floor().max(0.) as usize;
-                self.visible_items = available.min(self.items.len());
-                for (index, item) in self.items.iter().take(self.visible_items).enumerate() {
+                let available = ((area.bottom() - y - 0.10) / line_h).floor().max(0.) as usize;
+                self.visible_items = available.min(self.items.len().saturating_sub(self.visible_start));
+                for (slot, item) in self.items.iter().skip(self.visible_start).take(self.visible_items).enumerate() {
+                    let index = self.visible_start + slot;
                     let rect = Rect::new(area.x + 0.015, y, area.w - 0.03, line_h - 0.008);
                     self.item_buttons[index].render_text(
                         ui,
@@ -406,11 +422,30 @@ impl Page for ReplayLibraryPage {
                     );
                     y += line_h;
                 }
-                if self.items.len() > available {
-                    ui.text(format!("{} {}", self.items.len() - available, tl!("replay-library-more")))
-                        .pos(area.x + 0.025, area.bottom() - 0.04)
+                if self.items.len() > self.visible_items {
+                    let page_size = self.visible_items.max(1);
+                    let page = self.visible_start / page_size + 1;
+                    let pages = self.items.len().div_ceil(page_size);
+                    ui.text(format!("{page}/{pages}"))
+                        .pos(area.x + area.w * 0.45, area.bottom() - 0.045)
                         .size(0.25)
                         .draw();
+                    self.prev_page_btn.render_text(
+                        ui,
+                        Rect::new(area.x + 0.025, area.bottom() - 0.07, 0.16, 0.055),
+                        t,
+                        "‹",
+                        0.28,
+                        self.visible_start > 0,
+                    );
+                    self.next_page_btn.render_text(
+                        ui,
+                        Rect::new(area.right() - 0.185, area.bottom() - 0.07, 0.16, 0.055),
+                        t,
+                        "›",
+                        0.28,
+                        self.visible_start + self.visible_items < self.items.len(),
+                    );
                 }
             }
         });
