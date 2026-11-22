@@ -33,17 +33,22 @@ pub fn frame_step(frames: &[f64], current: f64, delta: i32, end: f64) -> (f64, b
 /// Calculate the next A-B loop position while preserving overrun.
 pub fn loop_target(current: f64, a: Option<f64>, b: Option<f64>, enabled: bool) -> Option<f64> {
     let (a, b) = (a?, b?);
-    (enabled && b - a >= 0.05 && current >= b)
-        .then(|| a + (current - b).rem_euclid(b - a))
+    (enabled && b - a >= 0.05 && current >= b).then(|| a + (current - b).rem_euclid(b - a))
 }
 
 /// Locate the previous/next judgement error, preserving an explicit cursor
 /// while the playback head is temporarily positioned before the selected error.
 pub fn error_index(errors: &[f64], current: f64, next: bool, selected: Option<usize>) -> Option<usize> {
     if let Some(i) = selected.filter(|&i| {
-        errors.get(i).is_some_and(|t| current >= (t - 1.0).max(0.0) - 1e-7 && current <= *t + 1e-7)
+        errors
+            .get(i)
+            .is_some_and(|t| current >= (t - 1.0).max(0.0) - 1e-7 && current <= *t + 1e-7)
     }) {
-        return if next { (i + 1 < errors.len()).then_some(i + 1) } else { i.checked_sub(1) };
+        return if next {
+            (i + 1 < errors.len()).then_some(i + 1)
+        } else {
+            i.checked_sub(1)
+        };
     }
 
     if next {
