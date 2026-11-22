@@ -259,7 +259,7 @@ impl Page for ReplayLibraryPage {
             self.status = None;
             return Ok(true);
         }
-        if !self.search_clear_btn.contains(touch.position) && self.search_btn.touch(touch, t) {
+        if (self.search.is_empty() || !self.search_clear_btn.contains(touch.position)) && self.search_btn.touch(touch, t) {
             request_input("replay-search", InputBox::new().default_text(&self.search));
             return Ok(true);
         }
