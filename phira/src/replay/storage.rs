@@ -25,8 +25,7 @@ pub fn decode(bytes: &[u8]) -> Result<Container> {
     let version = u32::from_le_bytes(bytes[8..12].try_into().context("Invalid version header")?);
     let payload = match version {
         5 | 6 => {
-            let decoder = zstd::stream::read::Decoder::new(&bytes[HEADER_BYTES..])
-                .context("Invalid Zstandard replay stream")?;
+            let decoder = zstd::stream::read::Decoder::new(&bytes[HEADER_BYTES..]).context("Invalid Zstandard replay stream")?;
             let decoded = read_limited(decoder)?;
             let payload: Value = serde_json::from_slice(&decoded).context("Invalid replay JSON")?;
             payload
@@ -337,9 +336,13 @@ mod tests {
         loop {
             let mut byte = (value & 0x7f) as u8;
             value >>= 7;
-            if value != 0 { byte |= 0x80; }
+            if value != 0 {
+                byte |= 0x80;
+            }
             out.push(byte);
-            if value == 0 { break; }
+            if value == 0 {
+                break;
+            }
         }
     }
 
@@ -348,16 +351,25 @@ mod tests {
         p.extend(71i32.to_le_bytes());
         p.extend(123456789i64.to_le_bytes());
         p.extend(338i32.to_le_bytes());
-        uleb(4, &mut p); p.extend(b"Milk");
+        uleb(4, &mut p);
+        p.extend(b"Milk");
         p.extend(999i32.to_le_bytes());
-        uleb(3, &mut p); p.extend(b"Ken");
+        uleb(3, &mut p);
+        p.extend(b"Ken");
         uleb(1, &mut p);
         p.extend(1f32.to_le_bytes());
         uleb(2, &mut p);
-        p.extend(4i8.to_le_bytes()); p.extend(0x3c00u16.to_le_bytes()); p.extend(0u16.to_le_bytes());
-        p.extend((-5i8).to_le_bytes()); p.extend(0u16.to_le_bytes()); p.extend(0u16.to_le_bytes());
+        p.extend(4i8.to_le_bytes());
+        p.extend(0x3c00u16.to_le_bytes());
+        p.extend(0u16.to_le_bytes());
+        p.extend((-5i8).to_le_bytes());
+        p.extend(0u16.to_le_bytes());
+        p.extend(0u16.to_le_bytes());
         uleb(1, &mut p);
-        p.extend(1f32.to_le_bytes()); p.extend(0u32.to_le_bytes()); p.extend(0u32.to_le_bytes()); p.push(0);
+        p.extend(1f32.to_le_bytes());
+        p.extend(0u32.to_le_bytes());
+        p.extend(0u32.to_le_bytes());
+        p.push(0);
         p
     }
 
@@ -380,7 +392,9 @@ mod tests {
             bytes.extend(0f32.to_le_bytes());
             bytes.extend(1f32.to_le_bytes());
             bytes.extend(0u32.to_le_bytes());
-            if version == 4 { bytes.extend([1, 0]); }
+            if version == 4 {
+                bytes.extend([1, 0]);
+            }
             bytes.extend(i64::MIN.to_le_bytes());
             bytes.extend(0u32.to_le_bytes());
             bytes.extend(0u32.to_le_bytes());
