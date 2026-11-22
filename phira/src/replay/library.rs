@@ -128,6 +128,16 @@ fn supported_extension(path: &Path) -> bool {
         .is_some_and(|e| matches!(e.to_ascii_lowercase().as_str(), "phirarec" | "phirar" | "ppr"))
 }
 
+/// Load and validate one replay from the private library.
+pub fn load(file: &str) -> Result<super::storage::ReplayTape> {
+    anyhow::ensure!(valid_file_name(file), "Invalid replay file name");
+    let path = root()?.join(file);
+    let metadata = fs::symlink_metadata(&path).context("Replay does not exist")?;
+    anyhow::ensure!(metadata.file_type().is_file(), "Replay is not a regular file");
+    anyhow::ensure!(metadata.len() <= super::storage::MAX_FILE_BYTES as u64, "Replay file exceeds 128 MiB");
+    super::storage::ReplayTape::decode(&fs::read(path)?)
+}
+
 /// Scan valid replay files, skipping corrupt files without stopping the whole library.
 pub fn list() -> Result<Vec<ReplayItem>> {
     let root = root()?;
