@@ -36,7 +36,7 @@ pub struct ReplayLibraryPage {
     delete_btn: DRectButton,
     export_btn: DRectButton,
     match_btn: DRectButton,
-    match_task: Option<LocalTask<Result<(String, library::Match)>>>,
+    match_task: LocalTask<Result<(String, library::Match)>>,
     status: Option<String>,
     delete_confirm: Arc<AtomicBool>,
     delete_file: Option<String>,
