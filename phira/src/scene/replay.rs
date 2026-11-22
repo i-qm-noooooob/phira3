@@ -2,7 +2,10 @@
 //! enters the ranked gameplay/update or score-submission path.
 
 use crate::{
-    replay::{library, storage::{ReplayChartRef, ReplayTape}},
+    replay::{
+        library,
+        storage::{ReplayChartRef, ReplayTape},
+    },
     scene::fs_from_path,
 };
 use anyhow::{Context, Result};
@@ -84,13 +87,14 @@ impl ReplayScene {
             Ok((illustration, background, _)) => (background, illustration),
             Err(_) => (BLACK_TEXTURE.clone(), BLACK_TEXTURE.clone()),
         };
-        let mut game = GameScene::new(
-            GameMode::View, info, config, fs, None, background, illustration, None, None, None,
-        ).await?;
+        let mut game = GameScene::new(GameMode::View, info, config, fs, None, background, illustration, None, None, None).await?;
         game.res.config.mods.set(Mods::NIGHTCORE, nightcore);
 
         anyhow::ensure!(
-            tape.judges.iter().all(|event| game.chart.lines.get(event.line as usize)
+            tape.judges.iter().all(|event| game
+                .chart
+                .lines
+                .get(event.line as usize)
                 .is_some_and(|line| (event.note as usize) < line.notes.len())),
             "Replay judgement indices do not match the selected chart"
         );
@@ -127,7 +131,10 @@ impl ReplayScene {
                 },
                 _ => continue,
             };
-            if let Some(note) = self.game.chart.lines
+            if let Some(note) = self
+                .game
+                .chart
+                .lines
                 .get_mut(event.line as usize)
                 .and_then(|line| line.notes.get_mut(event.note as usize))
             {
@@ -207,12 +214,15 @@ impl Scene for ReplayScene {
         let area = ui.content_rect();
         let y = area.y + area.h - 0.09;
         let w = (area.w - 0.08) / 2.;
-        self.back_button.render_text(
-            ui, Rect::new(area.x + 0.02, y, w, 0.07), tm.now() as f32, "Back", 0.3, true,
-        );
+        self.back_button
+            .render_text(ui, Rect::new(area.x + 0.02, y, w, 0.07), tm.now() as f32, "Back", 0.3, true);
         self.play_button.render_text(
-            ui, Rect::new(area.x + 0.06 + w, y, w, 0.07), tm.now() as f32,
-            if self.playing { "Pause" } else { "Play" }, 0.3, true,
+            ui,
+            Rect::new(area.x + 0.06 + w, y, w, 0.07),
+            tm.now() as f32,
+            if self.playing { "Pause" } else { "Play" },
+            0.3,
+            true,
         );
         let total = self.game.res.track_length.max(0.001);
         let progress = (self.current / total).clamp(0., 1.);
@@ -224,6 +234,10 @@ impl Scene for ReplayScene {
     }
 
     fn next_scene(&mut self, _tm: &mut TimeManager) -> NextScene {
-        if self.exit { NextScene::Pop } else { NextScene::None }
+        if self.exit {
+            NextScene::Pop
+        } else {
+            NextScene::None
+        }
     }
 }
