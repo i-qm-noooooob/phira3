@@ -71,20 +71,6 @@ fn gameplay_blur_radius(amount: f32, min_dimension: u32) -> f32 {
     }
 }
 
-#[cfg(test)]
-mod gameplay_blur_tests {
-    use super::gameplay_blur_radius;
-
-    #[test]
-    fn blur_strength_is_clamped_and_default_preserves_existing_radius() {
-        assert_eq!(gameplay_blur_radius(0.0, 1000), 0.0);
-        assert_eq!(gameplay_blur_radius(0.5, 1000), 50.0);
-        assert_eq!(gameplay_blur_radius(1.0, 1000), 550.0);
-        assert_eq!(gameplay_blur_radius(2.0, 1000), 550.0);
-        assert_eq!(gameplay_blur_radius(f32::NAN, 1000), 50.0);
-    }
-}
-
 impl LoadingScene {
     pub async fn load(fs: &mut dyn FileSystem, path: &str, blur_amount: f32) -> Result<(SafeTexture, SafeTexture, Color)> {
         let image = image::load_from_memory(&fs.load_file(path).await?).context("Failed to decode image")?;
@@ -339,3 +325,18 @@ impl Scene for LoadingScene {
         NextScene::None
     }
 }
+
+#[cfg(test)]
+mod gameplay_blur_tests {
+    use super::gameplay_blur_radius;
+
+    #[test]
+    fn blur_strength_is_clamped_and_default_preserves_existing_radius() {
+        assert_eq!(gameplay_blur_radius(0.0, 1000), 0.0);
+        assert_eq!(gameplay_blur_radius(0.5, 1000), 50.0);
+        assert_eq!(gameplay_blur_radius(1.0, 1000), 550.0);
+        assert_eq!(gameplay_blur_radius(2.0, 1000), 550.0);
+        assert_eq!(gameplay_blur_radius(f32::NAN, 1000), 50.0);
+    }
+}
+
