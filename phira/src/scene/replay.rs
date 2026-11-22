@@ -163,6 +163,10 @@ impl ReplayScene {
             self.game.music.pause()?;
             self.playing = false;
         } else {
+            if self.current >= self.game.res.track_length.max(0.) {
+                let rewind = -self.current;
+                self.seek_by(rewind)?;
+            }
             let target = (self.current + self.game.offset() as f64).max(0.);
             self.game.music.seek_to(target)?;
             self.game.music.play()?;
