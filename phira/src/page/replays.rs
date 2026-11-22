@@ -406,13 +406,21 @@ impl Page for ReplayLibraryPage {
                 ui,
                 search_rect,
                 t,
-                if self.search.is_empty() { tl!("replay-library-search") } else { Cow::Borrowed(self.search.as_str()) },
+                if self.search.is_empty() {
+                    tl!("replay-library-search")
+                } else {
+                    Cow::Borrowed(self.search.as_str())
+                },
                 0.28,
                 false,
             );
             if !self.search.is_empty() {
                 let clear_rect = Rect::new(search_rect.right() - search_rect.h, search_rect.y, search_rect.h, search_rect.h);
-                ui.text("×").pos(clear_rect.center().x, clear_rect.center().y).anchor(0.5, 0.5).size(0.35).draw();
+                ui.text("×")
+                    .pos(clear_rect.center().x, clear_rect.center().y)
+                    .anchor(0.5, 0.5)
+                    .size(0.35)
+                    .draw();
                 self.search_clear_btn.set(ui, clear_rect);
             }
             let sort_rect = Rect::new(search_rect.right() + 0.025, search_y, area.w - search_w - 0.10, 0.065);
