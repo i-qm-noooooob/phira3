@@ -30,6 +30,8 @@ pub struct ReplayScene {
     judge_index: usize,
     play_button: DRectButton,
     back_button: DRectButton,
+    backward_button: DRectButton,
+    forward_button: DRectButton,
     exit: bool,
 }
 
@@ -110,6 +112,8 @@ impl ReplayScene {
             judge_index: 0,
             play_button: DRectButton::new(),
             back_button: DRectButton::new(),
+            backward_button: DRectButton::new(),
+            forward_button: DRectButton::new(),
             exit: false,
         })
     }
@@ -166,6 +170,26 @@ impl ReplayScene {
         }
         Ok(())
     }
+
+    fn seek_by(&mut self, delta: f64) -> Result<()> {
+        let target = (self.current + delta).clamp(0., self.game.res.track_length.max(0.));
+        let was_playing = self.playing;
+        self.game.music.pause()?;
+        if target < self.current {
+            self.game.reset_replay();
+            self.judge_index = 0;
+        }
+        self.current = target;
+        self.game.res.time = target;
+        self.apply_events();
+        self.game.tick_replay();
+        let audio_time = (target + self.game.offset() as f64).max(0.);
+        self.game.music.seek_to(audio_time)?;
+        if was_playing {
+            self.game.music.play()?;
+        }
+        Ok(())
+    }
 }
 
 impl Scene for ReplayScene {
@@ -192,6 +216,14 @@ impl Scene for ReplayScene {
             self.game.music.pause()?;
             self.playing = false;
             self.exit = true;
+            return Ok(true);
+        }
+        if self.backward_button.touch(touch, t) {
+            self.seek_by(-5.)?;
+            return Ok(true);
+        }
+        if self.forward_button.touch(touch, t) {
+            self.seek_by(5.)?;
             return Ok(true);
         }
         if self.play_button.touch(touch, t) {
@@ -225,17 +257,21 @@ impl Scene for ReplayScene {
         self.game.render(tm, ui)?;
         let area = ui.content_rect();
         let y = area.y + area.h - 0.09;
-        let w = (area.w - 0.08) / 2.;
+        let w = (area.w - 0.14) / 4.;
         self.back_button
-            .render_text(ui, Rect::new(area.x + 0.02, y, w, 0.07), tm.now() as f32, tl!("replay-back"), 0.3, true);
+            .render_text(ui, Rect::new(area.x + 0.02, y, w, 0.07), tm.now() as f32, tl!("replay-back"), 0.28, true);
+        self.backward_button
+            .render_text(ui, Rect::new(area.x + 0.06 + w, y, w, 0.07), tm.now() as f32, "-5s", 0.28, true);
         self.play_button.render_text(
             ui,
-            Rect::new(area.x + 0.06 + w, y, w, 0.07),
+            Rect::new(area.x + 0.10 + w * 2., y, w, 0.07),
             tm.now() as f32,
             if self.playing { tl!("replay-pause") } else { tl!("replay-play") },
-            0.3,
+            0.28,
             true,
         );
+        self.forward_button
+            .render_text(ui, Rect::new(area.x + 0.14 + w * 3., y, w, 0.07), tm.now() as f32, "+5s", 0.28, true);
         let total = self.game.res.track_length.max(0.001);
         let progress = (self.current / total).clamp(0., 1.);
         ui.text(format!("{:.1}s / {:.1}s  ·  {:.0}%", self.current, total, progress * 100.))
