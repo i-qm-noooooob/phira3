@@ -1,0 +1,148 @@
+use super::{Page, SharedState};
+use crate::{replay::library::{self, ReplayItem}, scene::request_file};
+use anyhow::Result;
+use macroquad::prelude::*;
+use prpr::{
+    ext::semi_black,
+    ui::{DRectButton, Ui},
+};
+use std::{borrow::Cow, sync::atomic::{AtomicBool, Ordering}};
+
+static DIRTY: AtomicBool = AtomicBool::new(false);
+
+pub fn mark_dirty() {
+    DIRTY.store(true, Ordering::Release);
+}
+
+pub struct ReplayLibraryPage {
+    items: Vec<ReplayItem>,
+    import_btn: DRectButton,
+    refresh_btn: DRectButton,
+    error: Option<String>,
+}
+
+impl ReplayLibraryPage {
+    pub fn new() -> Self {
+        let mut page = Self {
+            items: Vec::new(),
+            import_btn: DRectButton::new(),
+            refresh_btn: DRectButton::new(),
+            error: None,
+        };
+        page.reload();
+        page
+    }
+
+    fn reload(&mut self) {
+        match library::list() {
+            Ok(items) => {
+                self.items = items;
+                self.error = None;
+            }
+            Err(err) => self.error = Some(err.to_string()),
+        }
+    }
+}
+
+impl Page for ReplayLibraryPage {
+    fn label(&self) -> Cow<'static, str> {
+        Cow::Borrowed("Replay Library")
+    }
+
+    fn update(&mut self, _s: &mut SharedState) -> Result<()> {
+        if DIRTY.swap(false, Ordering::AcqRel) {
+            self.reload();
+        }
+        Ok(())
+    }
+
+    fn touch(&mut self, touch: &Touch, s: &mut SharedState) -> Result<bool> {
+        if self.import_btn.touch(touch, s.t) {
+            request_file("_import_replay");
+            return Ok(true);
+        }
+        if self.refresh_btn.touch(touch, s.t) {
+            self.reload();
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    fn render(&mut self, ui: &mut Ui, s: &mut SharedState) -> Result<()> {
+        s.render_fader(ui, |ui| {
+            let area = ui.content_rect().feather(-0.025);
+            ui.fill_path(&area.rounded(0.02), semi_black(0.48));
+            ui.text("Replay Library")
+                .pos(area.x + 0.025, area.y + 0.025)
+                .size(0.55)
+                .draw();
+
+            let button_y = area.y + 0.105;
+            let button_w = (area.w - 0.08) / 2.;
+            self.import_btn.render_text(
+                ui,
+                Rect::new(area.x + 0.025, button_y, button_w, 0.075),
+                s.t,
+                "Import replay / ZIP",
+                0.34,
+                false,
+            );
+            self.refresh_btn.render_text(
+                ui,
+                Rect::new(area.x + 0.055 + button_w, button_y, button_w, 0.075),
+                s.t,
+                "Refresh",
+                0.34,
+                false,
+            );
+
+            let mut y = button_y + 0.105;
+            if let Some(error) = &self.error {
+                ui.text(format!("Library error: {error}"))
+                    .pos(area.x + 0.025, y)
+                    .size(0.3)
+                    .max_width(area.w - 0.05)
+                    .draw();
+                y += 0.08;
+            }
+            ui.text(format!("{} replay(s)", self.items.len()))
+                .pos(area.x + 0.025, y)
+                .size(0.32)
+                .draw();
+            y += 0.06;
+
+            if self.items.is_empty() {
+                ui.text("No replay files yet. Import .phirarec, .phirar, .ppr or a ZIP package.")
+                    .pos(area.x + 0.025, y)
+                    .size(0.31)
+                    .max_width(area.w - 0.05)
+                    .draw();
+            } else {
+                let line_h = 0.075;
+                let available = ((area.bottom() - y - 0.02) / line_h).floor().max(0.) as usize;
+                for item in self.items.iter().take(available) {
+                    let title = item.chart_name.as_deref().unwrap_or("Untitled replay");
+                    let player = item.player.as_deref().unwrap_or("Unknown player");
+                    ui.text(format!("{title} — {player}"))
+                        .pos(area.x + 0.025, y)
+                        .size(0.31)
+                        .max_width(area.w - 0.05)
+                        .draw();
+                    ui.text(format!("v{} · {} bytes · {}", item.version, item.size, if item.keep { "kept" } else { "local" }))
+                        .pos(area.x + 0.025, y + 0.033)
+                        .size(0.24)
+                        .color(Color::new(1., 1., 1., 0.65))
+                        .draw();
+                    y += line_h;
+                }
+                if self.items.len() > available {
+                    ui.text(format!("{} more item(s); list is currently truncated.", self.items.len() - available))
+                        .pos(area.x + 0.025, area.bottom() - 0.04)
+                        .size(0.25)
+                        .draw();
+                }
+            }
+        });
+        Ok(())
+    }
+}
