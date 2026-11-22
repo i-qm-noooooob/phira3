@@ -67,13 +67,9 @@ impl ReplayScene {
         config.speed = tape.speed.clamp(0.05, 16.);
         config.offset = tape.offset;
         config.mods = Mods::from_bits(tape.mods as i32).unwrap_or_default();
-        config.theoretical_score = tape.theoretical_score;
         config.player_name = tape.meta.player.clone().unwrap_or_else(|| "REPLAY".to_owned());
         config.interactive = false;
         config.touch_debug = false;
-        if let Ok(grading) = serde_json::from_value(tape.grading.clone()) {
-            config.judge_grading = grading;
-        }
         if let Some(aspect) = tape.aspect_ratio {
             config.aspect_ratio = Some(aspect);
             info.force_aspect_ratio = true;
