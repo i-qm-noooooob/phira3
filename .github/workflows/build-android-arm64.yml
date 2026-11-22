@@ -1,6 +1,17 @@
 name: Build Android APK (ARM64)
 
 on:
+  push:
+    branches:
+      - integration/phira-pro-port
+    paths:
+      - 'phira/**'
+      - 'prpr/**'
+      - 'prpr-avc/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
+      - '.github/workflows/build-android-arm64.yml'
   workflow_dispatch:
 
 permissions:
