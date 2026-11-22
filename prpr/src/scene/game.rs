@@ -495,6 +495,20 @@ impl GameScene {
         )
     }
 
+    /// Combined chart/config offset used by the local replay viewer.
+    pub fn offset(&self) -> f32 {
+        self.chart.offset + self.res.config.offset + self.info_offset
+    }
+
+    /// Update chart animation and visual effects at the replay clock.
+    /// This deliberately bypasses live input, judgement updates and score callbacks.
+    pub fn tick_replay(&mut self) {
+        self.chart.update(&mut self.res);
+        for effect in &mut self.effects {
+            effect.update(&self.res);
+        }
+    }
+
     fn touch_scale(&self) -> f32 {
         (screen_width() / screen_height()) / self.res.aspect_ratio
     }
