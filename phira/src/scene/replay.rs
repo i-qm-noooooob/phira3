@@ -514,7 +514,6 @@ impl Scene for ReplayScene {
         self.forward_button
             .render_text(ui, Rect::new(area.x + 0.14 + w * 3., y, w, 0.07), tm.now() as f32, "+5s", 0.28, true);
         let total = self.game.res.track_length.max(0.001);
-        let progress = (self.current / total).clamp(0., 1.);
         let timeline_time = self.timeline_drag_target.unwrap_or(self.current);
         let timeline_progress = (timeline_time / total).clamp(0., 1.);
         self.timeline_button.render_text(
