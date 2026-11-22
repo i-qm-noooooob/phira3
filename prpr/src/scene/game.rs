@@ -1252,6 +1252,12 @@ impl Scene for GameScene {
                 pop_camera_state();
             }
         }
+        if self.res.config.show_fps {
+            set_camera(&ui.camera());
+            if dt.is_finite() && dt > 0.0 {
+                crate::ui::draw_fps_overlay(ui, 1.0 / dt, 0, [0.0; 4]);
+            }
+        }
         Ok(())
     }
 
