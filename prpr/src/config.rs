@@ -78,6 +78,8 @@ pub struct Config {
     pub sample_count: u32,
     pub show_acc: bool,
     pub show_fps: bool,
+    /// FPS overlay position: 0 top center, 1 bottom center, 2 top left, 3 top right, 4 bottom left, 5 bottom right.
+    pub fps_position: u8,
     pub show_avg_fps: bool,
     pub speed: f32,
     pub touch_debug: bool,
@@ -119,6 +121,7 @@ impl Default for Config {
             sample_count: 1,
             show_acc: false,
             show_fps: false,
+            fps_position: 0,
             show_avg_fps: false,
             speed: 1.,
             touch_debug: false,
