@@ -44,6 +44,12 @@ pub struct ReplayScene {
     loop_a: Option<f64>,
     loop_b: Option<f64>,
     loop_enabled: bool,
+    step_back_button: DRectButton,
+    step_forward_button: DRectButton,
+    prev_error_button: DRectButton,
+    next_error_button: DRectButton,
+    errors: Vec<f64>,
+    selected_error: Option<usize>,
     exit: bool,
 }
 
@@ -143,6 +149,12 @@ impl ReplayScene {
             loop_a: None,
             loop_b: None,
             loop_enabled: false,
+            step_back_button: DRectButton::new(),
+            step_forward_button: DRectButton::new(),
+            prev_error_button: DRectButton::new(),
+            next_error_button: DRectButton::new(),
+            errors: tape.judges.iter().filter(|event| matches!(event.kind, 2 | 3 | 8 | 9)).map(|event| event.t).collect(),
+            selected_error: None,
             exit: false,
         })
     }
@@ -211,6 +223,15 @@ impl ReplayScene {
             }
         }
         pos
+    }
+
+    fn navigate_error(&mut self, next: bool) -> Result<()> {
+        let Some(index) = transport::error_index(&self.errors, self.current, next, self.selected_error) else {
+            return Ok(());
+        };
+        self.selected_error = Some(index);
+        let target = (self.errors[index] - 1.0).max(0.);
+        self.seek_by(target - self.current)
     }
 
     fn toggle_playback(&mut self) -> Result<()> {
@@ -288,6 +309,24 @@ impl Scene for ReplayScene {
             self.seek_by(5.)?;
             return Ok(true);
         }
+        if self.step_back_button.touch(touch, t) {
+            let (target, _) = transport::frame_step(&self.tape.frames, self.current, -1, self.game.res.track_length.max(0.));
+            self.seek_by(target - self.current)?;
+            return Ok(true);
+        }
+        if self.step_forward_button.touch(touch, t) {
+            let (target, _) = transport::frame_step(&self.tape.frames, self.current, 1, self.game.res.track_length.max(0.));
+            self.seek_by(target - self.current)?;
+            return Ok(true);
+        }
+        if self.prev_error_button.touch(touch, t) {
+            self.navigate_error(false)?;
+            return Ok(true);
+        }
+        if self.next_error_button.touch(touch, t) {
+            self.navigate_error(true)?;
+            return Ok(true);
+        }
         if self.mark_a_button.touch(touch, t) {
             self.loop_a = Some(self.current);
             self.loop_enabled = false;
@@ -363,6 +402,12 @@ impl Scene for ReplayScene {
         let y = area.y + area.h - 0.09;
         let marker_y = y - 0.075;
         let marker_w = (area.w - 0.10) / 3.;
+        let tool_y = marker_y - 0.065;
+        let tool_w = (area.w - 0.10) / 4.;
+        self.step_back_button.render_text(ui, Rect::new(area.x + 0.025, tool_y, tool_w, 0.05), tm.now() as f32, "−1f", 0.22, true);
+        self.step_forward_button.render_text(ui, Rect::new(area.x + 0.05 + tool_w, tool_y, tool_w, 0.05), tm.now() as f32, "+1f", 0.22, true);
+        self.prev_error_button.render_text(ui, Rect::new(area.x + 0.075 + tool_w * 2., tool_y, tool_w, 0.05), tm.now() as f32, "‹ Error", 0.22, true);
+        self.next_error_button.render_text(ui, Rect::new(area.x + 0.10 + tool_w * 3., tool_y, tool_w, 0.05), tm.now() as f32, "Error ›", 0.22, true);
         self.mark_a_button.render_text(
             ui,
             Rect::new(area.x + 0.025, marker_y, marker_w, 0.055),
