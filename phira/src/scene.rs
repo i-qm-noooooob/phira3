@@ -22,6 +22,9 @@ pub use unlock::UnlockScene;
 mod profile;
 pub use profile::ProfileScene;
 
+mod replay;
+pub use replay::ReplayScene;
+
 use crate::{
     client::{Client, UserManager},
     data::LocalChart,
