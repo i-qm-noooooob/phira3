@@ -1056,6 +1056,10 @@ fn export_logs(config: ExportConfig, manager: Option<Arc<LogManager>>) -> Result
 struct DebugList {
     chart_debug_btn: DRectButton,
     touch_debug_btn: DRectButton,
+    touch_color_btn: DRectButton,
+    touch_color_reset_btn: DRectButton,
+    touch_alpha_slider: Slider,
+    touch_size_slider: Slider,
     export_logs_btn: DRectButton,
     export_requested: bool,
     /// Give-up time (game time) for the async platform file picker.
@@ -1075,6 +1079,10 @@ impl DebugList {
         Self {
             chart_debug_btn: DRectButton::new(),
             touch_debug_btn: DRectButton::new(),
+            touch_color_btn: DRectButton::new(),
+            touch_color_reset_btn: DRectButton::new(),
+            touch_alpha_slider: Slider::new(0.05..1.0, 0.05),
+            touch_size_slider: Slider::new(0.01..0.15, 0.005),
             export_logs_btn: DRectButton::new(),
             export_requested: false,
             export_deadline: 0.,
@@ -1115,6 +1123,23 @@ impl DebugList {
         if self.touch_debug_btn.touch(touch, t) {
             config.touch_debug ^= true;
             return Ok(Some(true));
+        }
+        if self.touch_color_btn.touch(touch, t) {
+            const COLORS: [u32; 10] = [0xff3b30, 0xffffff, 0x000000, 0xff9500, 0xffd60a, 0x34c759, 0x5ac8fa, 0x0a84ff, 0xaf52de, 0xff2d55];
+            let current = config.touch_point_color & 0x00ff_ffff;
+            let next = COLORS.iter().position(|color| *color == current).map_or(0, |i| (i + 1) % COLORS.len());
+            config.touch_point_color = COLORS[next];
+            return Ok(Some(true));
+        }
+        if self.touch_color_reset_btn.touch(touch, t) {
+            config.touch_point_color = prpr::config::Config::default().touch_point_color;
+            return Ok(Some(true));
+        }
+        if let Some(changed) = self.touch_alpha_slider.touch(touch, t, &mut config.touch_point_alpha) {
+            return Ok(Some(changed));
+        }
+        if let Some(changed) = self.touch_size_slider.touch(touch, t, &mut config.touch_point_size) {
+            return Ok(Some(changed));
         }
         Ok(None)
     }
@@ -1186,6 +1211,21 @@ impl DebugList {
         item! {
             render_title(ui, tl!("item-touch-debug"), Some(tl!("item-touch-debug-sub")));
             render_switch(ui, rr, t, &mut self.touch_debug_btn, config.touch_debug);
+        }
+        item! {
+            render_title(ui, tl!("item-touch-color"), Some(tl!("item-touch-color-sub")));
+            let color = config.touch_point_color & 0x00ff_ffff;
+            self.touch_color_btn.render_text(ui, Rect::new(rr.x - 0.29, rr.y, 0.26, rr.h), t, format!("#{color:06X}"), 0.36, false);
+            ui.fill_rect(Rect::new(rr.x - 0.035, rr.y + 0.035, 0.025, rr.h - 0.07), Color::from_hex_rgb(color));
+            self.touch_color_reset_btn.render_text(ui, rr, t, tl!("color-reset"), 0.34, false);
+        }
+        item! {
+            render_title(ui, tl!("item-touch-alpha"), None);
+            self.touch_alpha_slider.render(ui, rr, t, config.touch_point_alpha, format!("{:.2}", config.touch_point_alpha));
+        }
+        item! {
+            render_title(ui, tl!("item-touch-size"), None);
+            self.touch_size_slider.render(ui, rr, t, config.touch_point_size, format!("{:.3}", config.touch_point_size));
         }
         item! {
             render_title(ui, tl!("item-export-logs"), Some(tl!("item-export-logs-sub")));
