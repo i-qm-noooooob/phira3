@@ -137,3 +137,9 @@ quality-preset-low = Thấp
 quality-preset-standard = Tiêu chuẩn
 quality-preset-high = Cao
 quality-preset-custom = Tùy chỉnh
+
+item-antialiasing = Khử răng cưa
+item-antialiasing-sub = Chuyển giữa tắt, FXAA và MSAA 2x.
+antialiasing-off = Tắt
+antialiasing-fxaa = FXAA
+antialiasing-msaa2 = MSAA 2x
