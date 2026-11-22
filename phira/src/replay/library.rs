@@ -201,6 +201,7 @@ fn import_in(source: &Path, root: &Path) -> Result<(ReplayItem, bool)> {
             IndexEntry {
                 imported_at: now_ms(),
                 keep: false,
+                ..Default::default()
             },
         );
         write_index(root, &index)?;
@@ -323,7 +324,7 @@ pub async fn fingerprint(fs: &mut dyn prpr::fs::FileSystem, info: &prpr::info::C
     let chart = prpr::scene::GameScene::load_chart_bytes(fs, info).await?;
     let extra = fs.load_file("extra.json").await.ok();
     let mut hash = Sha256::new();
-    hash.update(b"PhiraReplayChart1\\0");
+    hash.update(b"PhiraReplayChart1\0");
     hash.update((chart.len() as u64).to_le_bytes());
     hash.update(&chart);
     if let Some(extra) = extra {
@@ -341,7 +342,7 @@ pub async fn audio_fingerprint(fs: &mut dyn prpr::fs::FileSystem, info: &prpr::i
 /// Find a matching local chart. A fingerprint match is required for new-format tapes;
 /// legacy tapes can only use their recorded local path or chart ID and are marked unverified.
 pub async fn match_chart(replay: &super::storage::ReplayTape, preferred: Option<&str>, candidates: &[String]) -> Result<Match> {
-    let wrong_server = matches!(replay.chart, Some(super::storage::ReplayChartRef::Id(_)))
+    let wrong_server = matches!(&replay.chart, Some(super::storage::ReplayChartRef::Id(_)))
         && replay.meta.server.as_ref().is_some_and(|server| {
             server.trim_end_matches('/') != crate::client::API_URL.trim_end_matches('/')
         });
@@ -378,7 +379,7 @@ pub async fn match_chart(replay: &super::storage::ReplayTape, preferred: Option<
                 }
                 return Ok(Match::Found(path, true));
             }
-            if matches!(replay.chart, Some(super::storage::ReplayChartRef::Id(id)) if info.id == Some(id))
+            if matches!(&replay.chart, Some(super::storage::ReplayChartRef::Id(id)) if info.id == Some(*id))
                 || preferred == Some(path.as_str())
             {
                 wrong_version = true;
@@ -465,6 +466,7 @@ mod tests {
             IndexEntry {
                 imported_at: 77,
                 keep: false,
+                ..Default::default()
             },
         );
         write_index(&root, &index).unwrap();
