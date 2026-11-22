@@ -146,3 +146,9 @@ quality-preset-low = Low
 quality-preset-standard = Standard
 quality-preset-high = High
 quality-preset-custom = Custom
+
+item-antialiasing = Anti-aliasing
+item-antialiasing-sub = Cycle through off, FXAA and 2x MSAA.
+antialiasing-off = Off
+antialiasing-fxaa = FXAA
+antialiasing-msaa2 = MSAA 2x
