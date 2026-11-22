@@ -952,7 +952,7 @@ impl ChartList {
             render_switch(ui, rr, t, &mut self.show_fps_btn, config.show_fps);
         }
         item! {
-            render_title(ui, "FPS position", Some("Tap to cycle through six positions"));
+            render_title(ui, "FPS position", Some(std::borrow::Cow::Borrowed("Tap to cycle through six positions")));
             let positions = ["Top center", "Bottom center", "Top left", "Top right", "Bottom left", "Bottom right"];
             self.fps_position_btn.render_text(ui, rr, t, positions[config.fps_position.min(5) as usize], 0.5, false);
         }
