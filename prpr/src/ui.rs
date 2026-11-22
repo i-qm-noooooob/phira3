@@ -196,6 +196,14 @@ impl RectButton {
         }
     }
 
+    /// Return the horizontal fraction across the button in transformed screen coordinates.
+    pub fn normalized_x(&self, pos: Vec2) -> Option<f32> {
+        let [a, b, _, _] = self.pts?;
+        let ab = b - a;
+        let length_squared = ab.length_squared();
+        (length_squared > f32::EPSILON).then(|| ((pos - a).dot(ab) / length_squared).clamp(0., 1.))
+    }
+
     pub fn set(&mut self, ui: &mut Ui, rect: Rect) {
         let mat = nalgebra_to_glm(&ui.transform) * ui.gl_transform;
         let tr = |x: f32, y: f32| {
