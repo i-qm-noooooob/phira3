@@ -842,6 +842,33 @@ impl AudioList {
     }
 }
 
+fn antialiasing_index(config: &prpr::config::Config) -> usize {
+    if config.sample_count >= 2 {
+        2
+    } else if config.fxaa {
+        1
+    } else {
+        0
+    }
+}
+
+fn apply_antialiasing(config: &mut prpr::config::Config, index: usize) {
+    match index % 3 {
+        1 => {
+            config.sample_count = 1;
+            config.fxaa = true;
+        }
+        2 => {
+            config.sample_count = 2;
+            config.fxaa = false;
+        }
+        _ => {
+            config.sample_count = 1;
+            config.fxaa = false;
+        }
+    }
+}
+
 fn quality_preset_index(config: &prpr::config::Config) -> Option<usize> {
     match (config.particle, config.sample_count, config.fxaa) {
         (false, 1, false) => Some(0),
@@ -875,6 +902,7 @@ fn apply_quality_preset(config: &mut prpr::config::Config, index: usize) {
 
 struct ChartList {
     quality_preset_btn: DRectButton,
+    antialiasing_btn: DRectButton,
     show_acc_btn: DRectButton,
     show_fps_btn: DRectButton,
     fps_position_btn: DRectButton,
@@ -897,6 +925,7 @@ impl ChartList {
     pub fn new() -> Self {
         Self {
             quality_preset_btn: DRectButton::new(),
+            antialiasing_btn: DRectButton::new(),
             show_acc_btn: DRectButton::new(),
             show_fps_btn: DRectButton::new(),
             fps_position_btn: DRectButton::new(),
@@ -926,6 +955,10 @@ impl ChartList {
         if self.quality_preset_btn.touch(touch, t) {
             let next = quality_preset_index(config).map_or(0, |index| (index + 1) % 3);
             apply_quality_preset(config, next);
+            return Ok(Some(true));
+        }
+        if self.antialiasing_btn.touch(touch, t) {
+            apply_antialiasing(config, (antialiasing_index(config) + 1) % 3);
             return Ok(Some(true));
         }
         if self.show_acc_btn.touch(touch, t) {
@@ -1028,6 +1061,15 @@ impl ChartList {
                 _ => tl!("quality-preset-custom"),
             };
             self.quality_preset_btn.render_text(ui, rr, t, label, 0.5, false);
+        }
+        item! {
+            render_title(ui, tl!("item-antialiasing"), Some(tl!("item-antialiasing-sub")));
+            let label = match antialiasing_index(config) {
+                1 => tl!("antialiasing-fxaa"),
+                2 => tl!("antialiasing-msaa2"),
+                _ => tl!("antialiasing-off"),
+            };
+            self.antialiasing_btn.render_text(ui, rr, t, label, 0.5, false);
         }
         item! {
             render_title(ui, tl!("item-show-acc"), None);
@@ -1376,6 +1418,17 @@ mod tests {
 mod quality_preset_tests {
     use super::{apply_quality_preset, quality_preset_index};
     use prpr::config::Config;
+
+    #[test]
+    fn antialiasing_modes_cycle_without_using_high_memory_msaa() {
+        let mut config = Config::default();
+        for (index, samples, fxaa) in [(0, 1, false), (1, 1, true), (2, 2, false)] {
+            apply_antialiasing(&mut config, index);
+            assert_eq!(config.sample_count, samples);
+            assert_eq!(config.fxaa, fxaa);
+            assert_eq!(antialiasing_index(&config), index);
+        }
+    }
 
     #[test]
     fn quality_presets_apply_expected_settings() {
