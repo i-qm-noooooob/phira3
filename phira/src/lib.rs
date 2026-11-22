@@ -18,7 +18,7 @@ mod mp;
 mod page;
 mod popup;
 mod rate;
-mod replay;
+pub mod replay;
 mod resource;
 mod scene;
 mod tabs;
