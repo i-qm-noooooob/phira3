@@ -14,6 +14,7 @@ use anyhow::{Context, Result};
 use macroquad::prelude::*;
 use prpr::{
     config::Mods,
+    core::NoteKind,
     ext::BLACK_TEXTURE,
     judge::{JudgeStatus, Judgement},
     scene::{GameMode, GameScene, LoadingScene, NextScene, Scene},
@@ -95,12 +96,14 @@ impl ReplayScene {
         game.res.config.mods.set(Mods::NIGHTCORE, nightcore);
 
         anyhow::ensure!(
-            tape.judges.iter().all(|event| game
-                .chart
-                .lines
-                .get(event.line as usize)
-                .is_some_and(|line| (event.note as usize) < line.notes.len())),
-            "Replay judgement indices do not match the selected chart"
+            tape.judges.iter().all(|event| {
+                game.chart.lines.get(event.line as usize).is_some_and(|line| {
+                    line.notes.get(event.note as usize).is_some_and(|note| {
+                        !matches!(event.kind, 5 | 6) || matches!(&note.kind, NoteKind::Hold { .. })
+                    })
+                })
+            }),
+            "Replay judgement indices or hold events do not match the selected chart"
         );
 
         Ok(Self {
