@@ -109,11 +109,7 @@ fn item_from_bytes(root: &Path, file: String, bytes: &[u8], index: &Index) -> Re
     let decoded = super::storage::decode(bytes)?;
     let name = metadata_value(&decoded.payload, "name");
     let player = metadata_value(&decoded.payload, "player");
-    let recorded_at = decoded
-        .payload
-        .get("meta")
-        .and_then(|m| m.get("recorded_at"))
-        .and_then(Value::as_i64);
+    let recorded_at = decoded.payload.get("meta").and_then(|m| m.get("recorded_at")).and_then(Value::as_i64);
     let entry = index.get(&file);
     let imported_at = entry.map(|e| e.imported_at).unwrap_or(0);
     let keep = entry.is_some_and(|e| e.keep);
@@ -172,7 +168,12 @@ fn list_in(root: &Path) -> Result<Vec<ReplayItem>> {
             items.push(item);
         }
     }
-    items.sort_by(|a, b| b.recorded_at.cmp(&a.recorded_at).then_with(|| b.imported_at.cmp(&a.imported_at)).then_with(|| a.file.cmp(&b.file)));
+    items.sort_by(|a, b| {
+        b.recorded_at
+            .cmp(&a.recorded_at)
+            .then_with(|| b.imported_at.cmp(&a.imported_at))
+            .then_with(|| a.file.cmp(&b.file))
+    });
     Ok(items)
 }
 
@@ -196,10 +197,13 @@ pub fn import(source: &Path) -> Result<(ReplayItem, bool)> {
         true
     };
     if inserted || !index.contains_key(&file) {
-        index.insert(file.clone(), IndexEntry {
-            imported_at: now_ms(),
-            keep: false,
-        });
+        index.insert(
+            file.clone(),
+            IndexEntry {
+                imported_at: now_ms(),
+                keep: false,
+            },
+        );
         write_index(&root, &index)?;
     }
     let item = item_from_bytes(&root, file, &bytes, &index)
@@ -298,7 +302,7 @@ mod tests {
 
     fn sample() -> Vec<u8> {
         let json = br#"{"meta":{"name":"Test chart","player":"Local","recorded_at":1234},"frames":[],"touches":[],"judges":[]}"#;
-        let mut bytes = super::storage::MAGIC.to_vec();
+        let mut bytes = crate::replay::storage::MAGIC.to_vec();
         bytes.extend(5u32.to_le_bytes());
         bytes.extend(zstd::stream::encode_all(json.as_slice(), 1).unwrap());
         bytes
@@ -316,7 +320,13 @@ mod tests {
         let file = format!("replay-{digest}.phirarec");
         fs::create_dir_all(&root).unwrap();
         write_atomic(&root.join(&file), &bytes).unwrap();
-        index.insert(file.clone(), IndexEntry { imported_at: 77, keep: false });
+        index.insert(
+            file.clone(),
+            IndexEntry {
+                imported_at: 77,
+                keep: false,
+            },
+        );
         write_index(&root, &index).unwrap();
         let items = list_in(&root).unwrap();
         assert_eq!(items.len(), 1);
