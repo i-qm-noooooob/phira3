@@ -1428,9 +1428,21 @@ impl Scene for GameScene {
             }
         }
         if self.res.config.show_fps {
-            set_camera(&ui.camera());
-            if dt.is_finite() && dt > 0.0 {
-                crate::ui::draw_fps_overlay(ui, 1.0 / dt, self.res.config.fps_position as u32, [0.0; 4]);
+            // Use the engine's real frame delta rather than the scene clock,
+            // which may be reset or paused independently of rendering.
+            let frame_time = get_frame_time();
+            if frame_time.is_finite() && frame_time > 0.000_1 {
+                self.gl.flush();
+                push_camera_state();
+                set_camera(&ui.camera());
+                crate::ui::draw_fps_overlay(
+                    ui,
+                    1.0 / frame_time,
+                    self.res.config.fps_position as u32,
+                    [0.0; 4],
+                );
+                self.gl.flush();
+                pop_camera_state();
             }
         }
         Ok(())
