@@ -251,7 +251,7 @@ impl Page for ReplayLibraryPage {
                 t,
                 tl!("replay-library-delete"),
                 0.28,
-                selected.is_some(),
+                has_selected,
             );
             self.export_btn.render_text(
                 ui,
@@ -259,7 +259,7 @@ impl Page for ReplayLibraryPage {
                 t,
                 tl!("replay-library-export"),
                 0.28,
-                selected.is_some(),
+                has_selected,
             );
 
             let mut y = action_y + 0.095;
