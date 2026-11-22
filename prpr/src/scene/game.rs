@@ -504,6 +504,17 @@ impl GameScene {
         }
     }
 
+    /// Reset visual and judgement state before replaying from an earlier timestamp.
+    pub fn reset_replay(&mut self) {
+        self.judge.reset();
+        self.chart.reset();
+        self.bad_notes.clear();
+        self.res.emitter.emitter.reset();
+        self.res.emitter.emitter_square.reset();
+        self.res.time = 0.;
+        self.tick_replay();
+    }
+
     fn touch_scale(&self) -> f32 {
         (screen_width() / screen_height()) / self.res.aspect_ratio
     }
