@@ -129,7 +129,12 @@ impl ReplayScene {
             next_touch[index] = next_by_id.insert(event.id, index);
         }
 
-        let errors = tape.judges.iter().filter(|event| matches!(event.kind, 2 | 3 | 8 | 9)).map(|event| event.t).collect();
+        let errors = tape
+            .judges
+            .iter()
+            .filter(|event| matches!(event.kind, 2 | 3 | 8 | 9))
+            .map(|event| event.t)
+            .collect();
 
         Ok(Self {
             game,
@@ -406,10 +411,14 @@ impl Scene for ReplayScene {
         let marker_w = (area.w - 0.10) / 3.;
         let tool_y = marker_y - 0.065;
         let tool_w = (area.w - 0.10) / 4.;
-        self.step_back_button.render_text(ui, Rect::new(area.x + 0.025, tool_y, tool_w, 0.05), tm.now() as f32, "−1f", 0.22, true);
-        self.step_forward_button.render_text(ui, Rect::new(area.x + 0.05 + tool_w, tool_y, tool_w, 0.05), tm.now() as f32, "+1f", 0.22, true);
-        self.prev_error_button.render_text(ui, Rect::new(area.x + 0.075 + tool_w * 2., tool_y, tool_w, 0.05), tm.now() as f32, "‹ Error", 0.22, true);
-        self.next_error_button.render_text(ui, Rect::new(area.x + 0.10 + tool_w * 3., tool_y, tool_w, 0.05), tm.now() as f32, "Error ›", 0.22, true);
+        self.step_back_button
+            .render_text(ui, Rect::new(area.x + 0.025, tool_y, tool_w, 0.05), tm.now() as f32, "−1f", 0.22, true);
+        self.step_forward_button
+            .render_text(ui, Rect::new(area.x + 0.05 + tool_w, tool_y, tool_w, 0.05), tm.now() as f32, "+1f", 0.22, true);
+        self.prev_error_button
+            .render_text(ui, Rect::new(area.x + 0.075 + tool_w * 2., tool_y, tool_w, 0.05), tm.now() as f32, "‹ Error", 0.22, true);
+        self.next_error_button
+            .render_text(ui, Rect::new(area.x + 0.10 + tool_w * 3., tool_y, tool_w, 0.05), tm.now() as f32, "Error ›", 0.22, true);
         self.mark_a_button.render_text(
             ui,
             Rect::new(area.x + 0.025, marker_y, marker_w, 0.055),
