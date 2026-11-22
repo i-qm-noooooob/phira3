@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn timeline_seeking_clamps_pointer_and_rejects_invalid_geometry() {
-        assert_eq!(timeline_target(25.0, 10.0, 100.0, 120.0), Some(18.0));
+        assert!((timeline_target(25.0, 10.0, 100.0, 120.0).unwrap() - 18.0).abs() < 1e-5);
         assert_eq!(timeline_target(-5.0, 0.0, 100.0, 120.0), Some(0.0));
         assert_eq!(timeline_target(150.0, 0.0, 100.0, 120.0), Some(120.0));
         assert_eq!(timeline_target(50.0, 0.0, 0.0, 120.0), None);
