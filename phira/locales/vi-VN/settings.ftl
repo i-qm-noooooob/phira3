@@ -110,3 +110,6 @@ item-touch-color-sub = Chạm để đổi màu; đặt lại để khôi phục
 item-touch-alpha = Độ mờ điểm chạm
 item-touch-size = Kích thước điểm chạm
 color-reset = Đặt lại
+item-fixed-background = Cố định độ tối nền gameplay
+item-fixed-background-sub = Dùng mức độ tối bạn chọn thay cho thiết lập nền của beatmap.
+item-background-dim = Độ tối nền
