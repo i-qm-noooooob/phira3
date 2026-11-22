@@ -26,8 +26,7 @@ pub fn decode(bytes: &[u8]) -> Result<Container> {
     let version = u32::from_le_bytes(bytes[8..12].try_into().context("Invalid version header")?);
     anyhow::ensure!(matches!(version, 5 | 6), "Unsupported replay version: {version}");
 
-    let decoder = zstd::stream::read::Decoder::new(&bytes[HEADER_BYTES..])
-        .context("Invalid Zstandard replay stream")?;
+    let decoder = zstd::stream::read::Decoder::new(&bytes[HEADER_BYTES..]).context("Invalid Zstandard replay stream")?;
     let mut decoded = Vec::new();
     decoder
         .take((MAX_FILE_BYTES as u64) + 1)
