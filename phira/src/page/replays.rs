@@ -116,19 +116,17 @@ impl Page for ReplayLibraryPage {
         if let Some(result) = self.match_task.as_mut().and_then(|task| poll_future(task.as_mut())) {
             self.match_task = None;
             match result {
-                Ok((file, library::Match::Found(local, verified))) => {
-                    match library::bind(&file, &local, verified) {
-                        Ok(()) => {
-                            self.status = Some(if verified {
-                                tl!("replay-library-match-verified").into_owned()
-                            } else {
-                                tl!("replay-library-match-unverified").into_owned()
-                            });
-                            self.reload();
-                        }
-                        Err(err) => show_error(err),
+                Ok((file, library::Match::Found(local, verified))) => match library::bind(&file, &local, verified) {
+                    Ok(()) => {
+                        self.status = Some(if verified {
+                            tl!("replay-library-match-verified").into_owned()
+                        } else {
+                            tl!("replay-library-match-unverified").into_owned()
+                        });
+                        self.reload();
                     }
-                }
+                    Err(err) => show_error(err),
+                },
                 Ok((_, library::Match::Missing)) => self.status = Some(tl!("replay-library-match-missing").into_owned()),
                 Ok((_, library::Match::WrongVersion)) => self.status = Some(tl!("replay-library-match-version").into_owned()),
                 Ok((_, library::Match::WrongAudio)) => self.status = Some(tl!("replay-library-match-audio").into_owned()),
@@ -233,10 +231,7 @@ impl Page for ReplayLibraryPage {
         }
         if self.match_btn.touch(touch, t) {
             if self.match_task.is_none() {
-                if let Some((file, preferred)) = self
-                    .selected_item()
-                    .map(|item| (item.file.clone(), item.local_path.clone()))
-                {
+                if let Some((file, preferred)) = self.selected_item().map(|item| (item.file.clone(), item.local_path.clone())) {
                     let candidates = crate::get_data().charts.iter().map(|chart| chart.local_path.clone()).collect::<Vec<_>>();
                     self.status = Some(tl!("replay-library-matching").into_owned());
                     self.match_task = Some(Box::pin(async move {
@@ -322,11 +317,7 @@ impl Page for ReplayLibraryPage {
 
             let mut y = action_y + 0.095;
             if let Some(status) = &self.status {
-                ui.text(status)
-                    .pos(area.x + 0.025, y)
-                    .size(0.26)
-                    .max_width(area.w - 0.05)
-                    .draw();
+                ui.text(status).pos(area.x + 0.025, y).size(0.26).max_width(area.w - 0.05).draw();
                 y += 0.045;
             }
             if let Some(error) = &self.error {
