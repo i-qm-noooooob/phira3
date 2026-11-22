@@ -576,6 +576,50 @@ mod tests {
     }
 
     #[test]
+    fn typed_decoder_validates_and_stably_orders_replay_events() {
+        let json = serde_json::to_vec(&json!({
+            "meta": {"name": "Typed chart", "player": "Player", "recorded_at": 1234},
+            "chart": {"Id": 42},
+            "frames": [2.0, 1.0],
+            "touches": [
+                {"phase": 0, "id": 7, "x": 0.5, "y": 0.25, "t": 2.0},
+                {"phase": 1, "id": 7, "x": 0.6, "y": 0.25, "t": 1.0}
+            ],
+            "judges": [
+                {"t": 2.0, "line": 0, "note": 1, "kind": 0, "diff": 0.01},
+                {"t": 1.0, "line": 0, "note": 0, "kind": 1, "diff": -0.02}
+            ]
+        })).unwrap();
+        let replay = ReplayTape::decode(&encoded(5, &json)).unwrap();
+        assert_eq!(replay.meta.name, "Typed chart");
+        assert_eq!(replay.meta.player.as_deref(), Some("Player"));
+        assert_eq!(replay.source_version, 5);
+        assert!(replay.repaired_order);
+        assert_eq!(replay.frames, vec![1.0, 2.0]);
+        assert_eq!(replay.touches[0].t, 1.0);
+        assert_eq!(replay.judges[0].note, 0);
+        assert!(matches!(replay.chart, Some(ReplayChartRef::Id(42))));
+    }
+
+    #[test]
+    fn typed_decoder_rejects_invalid_speed_and_event_values() {
+        let invalid_speed = encoded(5, br#"{"speed":0,"frames":[],"touches":[],"judges":[]}"#);
+        assert!(ReplayTape::decode(&invalid_speed).is_err());
+
+        let invalid_touch = encoded(
+            5,
+            br#"{"frames":[],"touches":[{"phase":3,"id":1,"x":0,"y":0,"t":0}],"judges":[]}"#,
+        );
+        assert!(ReplayTape::decode(&invalid_touch).is_err());
+
+        let invalid_judge = encoded(
+            5,
+            br#"{"frames":[],"touches":[],"judges":[{"t":0,"line":0,"note":0,"kind":10,"diff":0}]}"#,
+        );
+        assert!(ReplayTape::decode(&invalid_judge).is_err());
+    }
+
+    #[test]
     fn rejects_malformed_headers_versions_shapes_and_truncation() {
         assert!(decode(b"").is_err());
         assert!(decode(b"NOTAREC!0000").is_err());
