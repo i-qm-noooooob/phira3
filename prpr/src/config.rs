@@ -82,6 +82,8 @@ pub struct Config {
     pub combo_text: String,
     /// FPS overlay position: 0 top center, 1 bottom center, 2 top left, 3 top right, 4 bottom left, 5 bottom right.
     pub fps_position: u8,
+    /// Gameplay background blur strength (0 = sharp, 0.5 = original blur).
+    pub gameplay_background_blur: f32,
     pub show_avg_fps: bool,
     pub speed: f32,
     pub touch_debug: bool,
@@ -125,6 +127,7 @@ impl Default for Config {
             show_fps: false,
             combo_text: String::new(),
             fps_position: 0,
+            gameplay_background_blur: 0.5,
             show_avg_fps: false,
             speed: 1.,
             touch_debug: false,
