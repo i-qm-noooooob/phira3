@@ -999,7 +999,7 @@ impl ChartList {
                 tl!("fps-pos-bottom-left"),
                 tl!("fps-pos-bottom-right"),
             ];
-            self.fps_position_btn.render_text(ui, rr, t, positions[config.fps_position.min(5) as usize], 0.5, false);
+            self.fps_position_btn.render_text(ui, rr, t, positions[config.fps_position.min(5) as usize].clone(), 0.5, false);
         }
         item! {
             render_title(ui, tl!("item-ap-fc-indicator"), Some(tl!("item-ap-fc-indicator-sub")));
