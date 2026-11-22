@@ -324,9 +324,7 @@ impl Scene for LoadingScene {
         }
         NextScene::None
     }
-}
-
-#[cfg(test)]
+}\n#[cfg(test)]
 mod gameplay_blur_tests {
     use super::gameplay_blur_radius;
 
