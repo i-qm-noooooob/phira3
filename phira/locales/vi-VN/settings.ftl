@@ -167,3 +167,13 @@ replay-library-delete = Xóa
 replay-library-export = Xuất
 replay-library-delete-title = Xóa replay
 replay-library-delete-confirm = Xóa replay này khỏi thư viện cục bộ? Không thể hoàn tác.
+
+replay-library-match = Ghép chart
+replay-library-matching = Đang kiểm tra chart cục bộ…
+replay-library-match-verified = Đã xác minh dấu vân tay chart và nhạc
+replay-library-match-unverified = Đã ghép chart cũ nhưng không thể xác minh danh tính
+replay-library-match-missing = Không tìm thấy chart cục bộ phù hợp
+replay-library-match-version = Phiên bản chart không khớp với replay
+replay-library-match-audio = Chart khớp nhưng tệp nhạc khác
+replay-library-match-server = Replay thuộc máy chủ Phira khác
+replay-library-match-failed = Ghép chart thất bại
