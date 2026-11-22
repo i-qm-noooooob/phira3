@@ -120,17 +120,25 @@ impl ReplayScene {
                 break;
             }
             self.judge_index += 1;
+            if matches!(event.kind, 5 | 6) {
+                if let Some(note) = self
+                    .game
+                    .chart
+                    .lines
+                    .get_mut(event.line as usize)
+                    .and_then(|line| line.notes.get_mut(event.note as usize))
+                {
+                    // Hold head events establish the in-progress hold state.
+                    // The later tail event carries the one final score judgement.
+                    note.judge = JudgeStatus::Hold(event.kind == 5, event.t, 0., false, f64::INFINITY);
+                }
+                continue;
+            }
             let grade = match event.kind {
                 0 | 4 => Judgement::Perfect,
                 1 | 7 => Judgement::Good,
                 2 | 8 | 9 => Judgement::Bad,
                 3 => Judgement::Miss,
-                5 | 6 => match event.head_grade.unwrap_or(if event.kind == 5 { 0 } else { 1 }) {
-                    0 | 4 => Judgement::Perfect,
-                    1 | 7 => Judgement::Good,
-                    2 | 8 | 9 => Judgement::Bad,
-                    _ => Judgement::Miss,
-                },
                 _ => continue,
             };
             if let Some(note) = self
