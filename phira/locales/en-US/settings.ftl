@@ -122,3 +122,13 @@ color-reset = Reset
 item-fixed-background = Fixed gameplay background dim
 item-fixed-background-sub = Use your chosen dim instead of the beatmap's background setting.
 item-background-dim = Background dim
+
+item-show-fps-overlay = Show FPS overlay
+item-fps-position = FPS position
+item-fps-position-sub = Tap to cycle through six positions.
+item-gameplay-background-blur = Gameplay background blur
+item-gameplay-background-blur-sub = 0 = sharp, 0.5 = default, 1 = strongest.
+item-show-perfect-combo = Show perfect combo
+item-show-perfect-combo-sub = Display PERFECT COMBO below the combo count; visual only.
+item-combo-text = Combo text
+item-combo-text-sub = Custom label below the combo count; maximum 16 characters.
