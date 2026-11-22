@@ -497,6 +497,25 @@ impl GameScene {
 
     /// Update chart animation and visual effects at the replay clock.
     /// This deliberately bypasses live input, judgement updates and score callbacks.
+    /// Recreate replay audio at a separate viewer playback rate without changing chart speed or scoring.
+    pub fn set_replay_playback_rate(&mut self, rate: f64, position: f64, playing: bool) -> Result<()> {
+        let rate = if rate.is_finite() { rate.clamp(0.1, 3.0) } else { 1.0 };
+        let mut music = self.res.audio.create_music(
+            self.res.music.clone(),
+            MusicParams {
+                amplifier: self.res.config.volume_music as _,
+                playback_rate: self.res.config.speed as f64 * rate,
+                ..Default::default()
+            },
+        )?;
+        music.seek_to((position + self.offset() as f64).max(0.))?;
+        if playing {
+            music.play()?;
+        }
+        self.music = music;
+        Ok(())
+    }
+
     pub fn tick_replay(&mut self) {
         self.chart.update(&mut self.res);
         for effect in &mut self.effects {
