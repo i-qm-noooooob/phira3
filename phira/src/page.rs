@@ -24,6 +24,9 @@ pub use offset::OffsetPage;
 mod respack;
 pub use respack::{ResPackItem, ResPackPage};
 
+pub mod replays;
+pub use replays::ReplayLibraryPage;
+
 mod settings;
 pub use settings::SettingsPage;
 use tokio::sync::Notify;
