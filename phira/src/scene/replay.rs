@@ -67,6 +67,11 @@ impl ReplayScene {
         config.speed = tape.speed.clamp(0.05, 16.);
         config.offset = tape.offset;
         config.mods = Mods::from_bits(tape.mods as i32).unwrap_or_default();
+        let nightcore = config.mods.contains(Mods::NIGHTCORE);
+        if tape.source_version < 5 && nightcore {
+            config.speed *= 1.5;
+        }
+        config.mods.remove(Mods::NIGHTCORE);
         config.player_name = tape.meta.player.clone().unwrap_or_else(|| "REPLAY".to_owned());
         config.interactive = false;
         config.touch_debug = false;
@@ -79,9 +84,10 @@ impl ReplayScene {
             Ok((illustration, background, _)) => (background, illustration),
             Err(_) => (BLACK_TEXTURE.clone(), BLACK_TEXTURE.clone()),
         };
-        let game = GameScene::new(
+        let mut game = GameScene::new(
             GameMode::View, info, config, fs, None, background, illustration, None, None, None,
         ).await?;
+        game.res.config.mods.set(Mods::NIGHTCORE, nightcore);
 
         anyhow::ensure!(
             tape.judges.iter().all(|event| game.chart.lines.get(event.line as usize)
@@ -154,7 +160,7 @@ impl Scene for ReplayScene {
         tm.seek_to(0.1);
         self.game.update(tm)?;
         self.game.music.pause()?;
-        self.game.music.seek_to(self.game.offset() as f64)?;
+        self.game.music.seek_to((self.game.offset() as f64).max(0.))?;
         self.game.res.time = 0.;
         self.game.tick_replay();
         self.last_real = tm.real_time();
@@ -181,7 +187,7 @@ impl Scene for ReplayScene {
         let delta = (real - self.last_real).clamp(0., 0.1);
         self.last_real = real;
         if self.playing {
-            self.current += delta * self.tape.speed as f64;
+            self.current += delta * self.game.res.config.speed as f64;
             let end = self.game.res.track_length.max(0.);
             if self.current >= end {
                 self.current = end;
