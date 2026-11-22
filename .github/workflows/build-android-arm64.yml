@@ -12,6 +12,8 @@ on:
       - 'Cargo.lock'
       - 'rust-toolchain.toml'
       - '.github/workflows/build-android-arm64.yml'
+  schedule:
+    - cron: '30 12 * * *' # Daily at 19:30 Asia/Ho_Chi_Minh
   workflow_dispatch:
 
 permissions:
