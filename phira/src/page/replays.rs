@@ -9,7 +9,10 @@ use prpr::{
     scene::request_file,
     ui::{DRectButton, Ui},
 };
-use std::{borrow::Cow, sync::atomic::{AtomicBool, Ordering}};
+use std::{
+    borrow::Cow,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 static DIRTY: AtomicBool = AtomicBool::new(false);
 
@@ -76,21 +79,12 @@ impl Page for ReplayLibraryPage {
         s.render_fader(ui, |ui| {
             let area = ui.content_rect().feather(-0.025);
             ui.fill_path(&area.rounded(0.02), semi_black(0.48));
-            ui.text(tl!("replay-library-title"))
-                .pos(area.x + 0.025, area.y + 0.025)
-                .size(0.55)
-                .draw();
+            ui.text(tl!("replay-library-title")).pos(area.x + 0.025, area.y + 0.025).size(0.55).draw();
 
             let button_y = area.y + 0.105;
             let button_w = (area.w - 0.08) / 2.;
-            self.import_btn.render_text(
-                ui,
-                Rect::new(area.x + 0.025, button_y, button_w, 0.075),
-                t,
-                tl!("replay-library-import"),
-                0.34,
-                false,
-            );
+            self.import_btn
+                .render_text(ui, Rect::new(area.x + 0.025, button_y, button_w, 0.075), t, tl!("replay-library-import"), 0.34, false);
             self.refresh_btn.render_text(
                 ui,
                 Rect::new(area.x + 0.055 + button_w, button_y, button_w, 0.075),
@@ -132,11 +126,20 @@ impl Page for ReplayLibraryPage {
                         .size(0.31)
                         .max_width(area.w - 0.05)
                         .draw();
-                    ui.text(format!("v{} · {} bytes · {}", item.version, item.size, if item.keep { tl!("replay-library-kept") } else { tl!("replay-library-local") }))
-                        .pos(area.x + 0.025, y + 0.033)
-                        .size(0.24)
-                        .color(Color::new(1., 1., 1., 0.65))
-                        .draw();
+                    ui.text(format!(
+                        "v{} · {} bytes · {}",
+                        item.version,
+                        item.size,
+                        if item.keep {
+                            tl!("replay-library-kept")
+                        } else {
+                            tl!("replay-library-local")
+                        }
+                    ))
+                    .pos(area.x + 0.025, y + 0.033)
+                    .size(0.24)
+                    .color(Color::new(1., 1., 1., 0.65))
+                    .draw();
                     y += line_h;
                 }
                 if self.items.len() > available {
