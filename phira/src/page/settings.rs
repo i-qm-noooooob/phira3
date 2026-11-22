@@ -991,7 +991,14 @@ impl ChartList {
         }
         item! {
             render_title(ui, tl!("item-fps-position"), Some(tl!("item-fps-position-sub")));
-            let positions = ["Top center", "Bottom center", "Top left", "Top right", "Bottom left", "Bottom right"];
+            let positions = [
+                tl!("fps-pos-top-center"),
+                tl!("fps-pos-bottom-center"),
+                tl!("fps-pos-top-left"),
+                tl!("fps-pos-top-right"),
+                tl!("fps-pos-bottom-left"),
+                tl!("fps-pos-bottom-right"),
+            ];
             self.fps_position_btn.render_text(ui, rr, t, positions[config.fps_position.min(5) as usize], 0.5, false);
         }
         item! {
