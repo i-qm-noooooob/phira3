@@ -98,9 +98,9 @@ impl ReplayScene {
         anyhow::ensure!(
             tape.judges.iter().all(|event| {
                 game.chart.lines.get(event.line as usize).is_some_and(|line| {
-                    line.notes.get(event.note as usize).is_some_and(|note| {
-                        !matches!(event.kind, 5 | 6) || matches!(&note.kind, NoteKind::Hold { .. })
-                    })
+                    line.notes
+                        .get(event.note as usize)
+                        .is_some_and(|note| !matches!(event.kind, 5 | 6) || matches!(&note.kind, NoteKind::Hold { .. }))
                 })
             }),
             "Replay judgement indices or hold events do not match the selected chart"
