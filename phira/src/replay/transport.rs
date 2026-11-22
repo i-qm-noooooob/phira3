@@ -38,12 +38,7 @@ pub fn loop_target(current: f64, a: Option<f64>, b: Option<f64>, enabled: bool) 
 
 /// Locate the previous/next judgement error, preserving an explicit cursor
 /// while the playback head is temporarily positioned before the selected error.
-pub fn error_index(
-    errors: &[f64],
-    current: f64,
-    next: bool,
-    selected: Option<usize>,
-) -> Option<usize> {
+pub fn error_index(errors: &[f64], current: f64, next: bool, selected: Option<usize>) -> Option<usize> {
     if let Some(i) = selected.filter(|&i| {
         errors
             .get(i)
