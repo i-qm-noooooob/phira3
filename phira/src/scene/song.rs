@@ -1011,7 +1011,7 @@ impl SongScene {
             };
             let chart_updated = info.chart_updated;
             config.mods = mods;
-            let preload = LoadingScene::load(fs.as_mut(), &info.illustration).await?;
+            let preload = LoadingScene::load(fs.as_mut(), &info.illustration, config.gameplay_background_blur).await?;
             if let Some(output) = background_output {
                 *output.lock().unwrap() = Some(preload.1.clone());
             }
