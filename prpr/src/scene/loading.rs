@@ -338,4 +338,3 @@ mod gameplay_blur_tests {
         assert_eq!(gameplay_blur_radius(f32::NAN, 1000), 50.0);
     }
 }
-
