@@ -136,7 +136,7 @@ impl Default for Config {
             res_pack_path: None,
             sample_count: 1,
             show_acc: false,
-            show_fps: false,
+            show_fps: true,
             combo_text: String::new(),
             show_perfect_combo: false,
             fps_position: 0,
