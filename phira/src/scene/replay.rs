@@ -134,12 +134,15 @@ impl ReplayScene {
             next_touch[index] = next_by_id.insert(event.id, index);
         }
 
-        let errors = tape
+        let mut errors: Vec<f64> = tape
             .judges
             .iter()
             .filter(|event| matches!(event.kind, 2 | 3 | 8 | 9))
             .map(|event| event.t)
             .collect();
+        // A hold or repaired legacy replay can contain multiple error events at
+        // effectively the same timestamp. Navigation should visit that moment once.
+        errors.dedup_by(|a, b| (*a - *b).abs() < 1e-7);
 
         Ok(Self {
             game,
