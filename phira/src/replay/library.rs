@@ -302,9 +302,7 @@ fn valid_local_chart_path(path: &str) -> bool {
     !path.is_empty()
         && !path.contains('\\')
         && !path.contains(':')
-        && Path::new(path)
-            .components()
-            .all(|component| matches!(component, Component::Normal(_)))
+        && Path::new(path).components().all(|component| matches!(component, Component::Normal(_)))
 }
 
 fn bind_in(root: &Path, file: &str, local_path: &str, verified: bool) -> Result<()> {
