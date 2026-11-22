@@ -1,11 +1,12 @@
 prpr_l10n::tl_file!("replays");
 
 use super::{Page, SharedState};
-use crate::{replay::library::{self, ReplayItem}, scene::request_file};
+use crate::replay::library::{self, ReplayItem};
 use anyhow::Result;
 use macroquad::prelude::*;
 use prpr::{
-    ext::semi_black,
+    ext::{semi_black, RectExt},
+    scene::request_file,
     ui::{DRectButton, Ui},
 };
 use std::{borrow::Cow, sync::atomic::{AtomicBool, Ordering}};
