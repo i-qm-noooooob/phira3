@@ -30,6 +30,7 @@ pub fn mark_dirty() {
 pub struct ReplayLibraryPage {
     items: Vec<ReplayItem>,
     item_buttons: Vec<DRectButton>,
+    visible_items: usize,
     selected: Option<usize>,
     import_btn: DRectButton,
     refresh_btn: DRectButton,
@@ -48,6 +49,7 @@ impl ReplayLibraryPage {
         let mut page = Self {
             items: Vec::new(),
             item_buttons: Vec::new(),
+            visible_items: 0,
             selected: None,
             import_btn: DRectButton::new(),
             refresh_btn: DRectButton::new(),
@@ -154,9 +156,6 @@ impl Page for ReplayLibraryPage {
 
     fn touch(&mut self, touch: &Touch, s: &mut SharedState) -> Result<bool> {
         let t = s.t;
-        let area = s.content_rect().feather(-0.025);
-        let button_y = area.y + 0.105;
-        let button_w = (area.w - 0.08) / 2.;
         if self.import_btn.touch(touch, t) {
             request_file("_import_replay");
             return Ok(true);
@@ -166,8 +165,6 @@ impl Page for ReplayLibraryPage {
             return Ok(true);
         }
 
-        let action_y = button_y + 0.09;
-        let action_w = (area.w - 0.10) / 3.;
         if self.keep_btn.touch(touch, t) {
             if let Some(item) = self.selected_item() {
                 if let Err(err) = library::set_keep(&item.file, !item.keep) {
@@ -207,20 +204,12 @@ impl Page for ReplayLibraryPage {
             return Ok(true);
         }
 
-        let list_y = action_y + 0.10;
-        let row_h = 0.09;
-        for (index, button) in self.item_buttons.iter_mut().enumerate() {
-            let y = list_y + index as f32 * row_h;
-            if y + row_h > area.bottom() {
-                break;
-            }
+        for (index, button) in self.item_buttons.iter_mut().take(self.visible_items).enumerate() {
             if button.touch(touch, t) {
                 self.selected = Some(index);
                 return Ok(true);
             }
         }
-        let _ = button_w;
-        let _ = action_w;
         Ok(false)
     }
 
@@ -299,7 +288,8 @@ impl Page for ReplayLibraryPage {
             } else {
                 let line_h = 0.09;
                 let available = ((area.bottom() - y - 0.02) / line_h).floor().max(0.) as usize;
-                for (index, item) in self.items.iter().take(available).enumerate() {
+                self.visible_items = available.min(self.items.len());
+                for (index, item) in self.items.iter().take(self.visible_items).enumerate() {
                     let rect = Rect::new(area.x + 0.015, y, area.w - 0.03, line_h - 0.008);
                     self.item_buttons[index].render_text(
                         ui,
