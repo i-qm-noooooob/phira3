@@ -1,7 +1,6 @@
 //! Local replay library. Imported files are never added to ranked score history.
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
@@ -96,27 +95,18 @@ fn write_index(root: &Path, index: &Index) -> Result<()> {
     write_atomic(&root.join("index.json"), &bytes)
 }
 
-fn metadata_value(payload: &Value, key: &str) -> Option<String> {
-    payload
-        .get("meta")
-        .and_then(|m| m.get(key))
-        .and_then(Value::as_str)
-        .filter(|s| !s.trim().is_empty())
-        .map(str::to_owned)
-}
-
 fn item_from_bytes(root: &Path, file: String, bytes: &[u8], index: &Index) -> Result<ReplayItem> {
-    let decoded = super::storage::decode(bytes)?;
-    let name = metadata_value(&decoded.payload, "name");
-    let player = metadata_value(&decoded.payload, "player");
-    let recorded_at = decoded.payload.get("meta").and_then(|m| m.get("recorded_at")).and_then(Value::as_i64);
+    let decoded = super::storage::ReplayTape::decode(bytes)?;
+    let name = (!decoded.meta.name.trim().is_empty()).then_some(decoded.meta.name.clone());
+    let player = decoded.meta.player.clone().filter(|value| !value.trim().is_empty());
+    let recorded_at = decoded.meta.recorded_at;
     let entry = index.get(&file);
     let imported_at = entry.map(|e| e.imported_at).unwrap_or(0);
     let keep = entry.is_some_and(|e| e.keep);
     let size = root.join(&file).metadata().map(|m| m.len()).unwrap_or(bytes.len() as u64);
     Ok(ReplayItem {
         file,
-        version: decoded.version,
+        version: decoded.source_version,
         size,
         imported_at,
         keep,
