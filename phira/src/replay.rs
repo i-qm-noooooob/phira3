@@ -1,3 +1,4 @@
 //! Local replay support. Keep this subsystem isolated from ranked play.
+pub mod library;
 pub mod storage;
 pub mod transport;
