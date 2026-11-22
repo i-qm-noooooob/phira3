@@ -854,6 +854,7 @@ struct ChartList {
     use_keyboard_btn: DRectButton,
     speed_slider: Slider,
     size_slider: Slider,
+    background_blur_slider: Slider,
     combo_text_btn: DRectButton,
 }
 
@@ -871,6 +872,7 @@ impl ChartList {
             use_keyboard_btn: DRectButton::new(),
             speed_slider: Slider::new(0.5..2., 0.05),
             size_slider: Slider::new(0.8..1.2, 0.005),
+            background_blur_slider: Slider::new(0.0..1.0, 0.01),
             combo_text_btn: DRectButton::new(),
         }
     }
@@ -922,6 +924,9 @@ impl ChartList {
             return Ok(wt);
         }
         if let wt @ Some(_) = self.size_slider.touch(touch, t, &mut config.note_scale) {
+            return Ok(wt);
+        }
+        if let wt @ Some(_) = self.background_blur_slider.touch(touch, t, &mut config.gameplay_background_blur) {
             return Ok(wt);
         }
         if self.combo_text_btn.touch(touch, t) {
@@ -1001,6 +1006,10 @@ impl ChartList {
         item! {
             render_title(ui, tl!("item-note-size"), None);
             self.size_slider.render(ui, rr, t, config.note_scale, format!("{:.3}", config.note_scale));
+        }
+        item! {
+            render_title(ui, Cow::Borrowed("Gameplay background blur"), Some(Cow::Borrowed("0 = sharp, 0.5 = default, 1 = strongest")));
+            self.background_blur_slider.render(ui, rr, t, config.gameplay_background_blur, format!("{:.2}", config.gameplay_background_blur));
         }
         item! {
             render_title(ui, Cow::Borrowed("Combo text"), Some(Cow::Borrowed("Custom label below the combo count; max 16 characters")));
