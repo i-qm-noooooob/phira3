@@ -179,6 +179,10 @@ fn list_in(root: &Path) -> Result<Vec<ReplayItem>> {
 
 /// Import one replay file. Identical content is deduplicated by SHA-256.
 pub fn import(source: &Path) -> Result<(ReplayItem, bool)> {
+    import_in(source, &root()?)
+}
+
+fn import_in(source: &Path, root: &Path) -> Result<(ReplayItem, bool)> {
     let metadata = fs::metadata(source).context("Cannot read replay source")?;
     anyhow::ensure!(metadata.is_file(), "Replay source is not a regular file");
     anyhow::ensure!(metadata.len() <= super::storage::MAX_FILE_BYTES as u64, "Replay file exceeds 128 MiB");
@@ -186,9 +190,8 @@ pub fn import(source: &Path) -> Result<(ReplayItem, bool)> {
     let decoded = super::storage::decode(&bytes)?;
     let digest = format!("{:x}", Sha256::digest(&bytes));
     let file = format!("replay-{digest}.phirarec");
-    let root = root()?;
-    fs::create_dir_all(&root)?;
-    let mut index = read_index(&root)?;
+    fs::create_dir_all(root)?;
+    let mut index = read_index(root)?;
     let path = root.join(&file);
     let inserted = if path.exists() {
         false
@@ -204,9 +207,9 @@ pub fn import(source: &Path) -> Result<(ReplayItem, bool)> {
                 keep: false,
             },
         );
-        write_index(&root, &index)?;
+        write_index(root, &index)?;
     }
-    let item = item_from_bytes(&root, file, &bytes, &index)
+    let item = item_from_bytes(root, file, &bytes, &index)
         .with_context(|| format!("Decoded replay version {} but could not add it to the library", decoded.version))?;
     Ok((item, inserted))
 }
@@ -259,33 +262,42 @@ pub fn import_package(source: &Path) -> Result<Vec<(ReplayItem, bool)>> {
 
 /// Toggle retention protection. This only affects library cleanup, not replay contents.
 pub fn set_keep(file: &str, keep: bool) -> Result<()> {
+    set_keep_in(&root()?, file, keep)
+}
+
+fn set_keep_in(root: &Path, file: &str, keep: bool) -> Result<()> {
     anyhow::ensure!(valid_file_name(file), "Invalid replay file name");
-    let root = root()?;
     let path = root.join(file);
     anyhow::ensure!(path.is_file() && path.parent() == Some(root.as_path()), "Replay does not exist in this library");
-    let mut index = read_index(&root)?;
+    let mut index = read_index(root)?;
     index.entry(file.to_owned()).or_default().keep = keep;
-    write_index(&root, &index)
+    write_index(root, &index)
 }
 
 /// Delete a replay that is inside the managed library directory.
 pub fn delete(file: &str) -> Result<()> {
+    delete_in(&root()?, file)
+}
+
+fn delete_in(root: &Path, file: &str) -> Result<()> {
     anyhow::ensure!(valid_file_name(file), "Invalid replay file name");
-    let root = root()?;
     let path = root.join(file);
-    anyhow::ensure!(path.parent() == Some(root.as_path()), "Replay path is outside the library");
+    anyhow::ensure!(path.parent() == Some(root), "Replay path is outside the library");
     let metadata = fs::symlink_metadata(&path).context("Replay does not exist")?;
     anyhow::ensure!(metadata.file_type().is_file(), "Replay is not a regular file");
-    let mut index = read_index(&root)?;
+    let mut index = read_index(root)?;
     fs::remove_file(&path)?;
     index.remove(file);
-    write_index(&root, &index)
+    write_index(root, &index)
 }
 
 /// Export a library replay without changing or deleting its source.
 pub fn export(file: &str, destination: &Path) -> Result<()> {
+    export_from(&root()?, file, destination)
+}
+
+fn export_from(root: &Path, file: &str, destination: &Path) -> Result<()> {
     anyhow::ensure!(valid_file_name(file), "Invalid replay file name");
-    let root = root()?;
     let source = root.join(file);
     let metadata = fs::symlink_metadata(&source).context("Replay does not exist")?;
     anyhow::ensure!(metadata.file_type().is_file(), "Replay is not a regular file");
@@ -334,6 +346,34 @@ mod tests {
         assert_eq!(items[0].recorded_at, Some(1234));
         assert_eq!(items[0].version, 5);
         assert_eq!(read_index(&root).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn real_import_deduplicates_and_keep_delete_export_work_in_isolated_library() {
+        let temp = tempfile::tempdir().unwrap();
+        let source = temp.path().join("source.phirarec");
+        let root = temp.path().join("library");
+        let output = temp.path().join("export.phirarec");
+        fs::write(&source, sample()).unwrap();
+
+        let (first, inserted) = import_in(&source, &root).unwrap();
+        assert!(inserted);
+        assert_eq!(first.chart_name.as_deref(), Some("Test chart"));
+
+        let (second, inserted) = import_in(&source, &root).unwrap();
+        assert!(!inserted);
+        assert_eq!(first.file, second.file);
+        assert_eq!(list_in(&root).unwrap().len(), 1);
+
+        set_keep_in(&root, &first.file, true).unwrap();
+        assert!(read_index(&root).unwrap()[&first.file].keep);
+
+        export_from(&root, &first.file, &output).unwrap();
+        assert_eq!(fs::read(&output).unwrap(), sample());
+
+        delete_in(&root, &first.file).unwrap();
+        assert!(list_in(&root).unwrap().is_empty());
+        assert!(!root.join(&first.file).exists());
     }
 
     #[test]
