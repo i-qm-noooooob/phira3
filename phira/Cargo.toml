@@ -84,6 +84,7 @@ url = { workspace = true }
 walkdir = { workspace = true }
 zip = { workspace = true, features = ["chrono"] }
 zstd = "0.13"
+flate2 = "1.1"
 
 [target.'cfg(not(any(target_os = "android", target_env = "ohos")))'.dependencies]
 sasa = { workspace = true, default-features = true }
