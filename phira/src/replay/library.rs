@@ -1,0 +1,323 @@
+//! Local replay library. Imported files are never added to ranked score history.
+use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use sha2::{Digest, Sha256};
+use std::{
+    collections::BTreeMap,
+    fs,
+    io::Write,
+    path::{Path, PathBuf},
+    sync::atomic::{AtomicU64, Ordering},
+    time::{SystemTime, UNIX_EPOCH},
+};
+
+const INDEX_LIMIT: u64 = 4 * 1024 * 1024;
+const MAX_ITEMS: usize = 10_000;
+static TEMP_ID: AtomicU64 = AtomicU64::new(0);
+
+fn root() -> Result<PathBuf> {
+    Ok(PathBuf::from(crate::dir::root()?).join("replays"))
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
+struct IndexEntry {
+    imported_at: i64,
+    keep: bool,
+}
+
+type Index = BTreeMap<String, IndexEntry>;
+
+#[derive(Clone, Debug, Serialize)]
+pub struct ReplayItem {
+    /// File name relative to the private replay-library directory.
+    pub file: String,
+    pub version: u32,
+    pub size: u64,
+    pub imported_at: i64,
+    pub keep: bool,
+    pub chart_name: Option<String>,
+    pub player: Option<String>,
+    pub recorded_at: Option<i64>,
+}
+
+fn now_ms() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis().min(i64::MAX as u128) as i64)
+        .unwrap_or(0)
+}
+
+fn valid_file_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 128
+        && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b == b'.')
+        && !name.starts_with('.')
+        && !name.contains("..")
+}
+
+fn read_index(root: &Path) -> Result<Index> {
+    let path = root.join("index.json");
+    if !path.exists() {
+        return Ok(Index::new());
+    }
+    let metadata = fs::metadata(&path)?;
+    anyhow::ensure!(metadata.len() <= INDEX_LIMIT, "Replay index exceeds size limit");
+    let bytes = fs::read(path)?;
+    let index: Index = serde_json::from_slice(&bytes).context("Invalid replay library index")?;
+    anyhow::ensure!(index.len() <= MAX_ITEMS, "Replay library index contains too many entries");
+    anyhow::ensure!(index.keys().all(|name| valid_file_name(name)), "Replay index contains an invalid file name");
+    Ok(index)
+}
+
+fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
+    let parent = path.parent().context("Missing parent directory")?;
+    fs::create_dir_all(parent)?;
+    let id = TEMP_ID.fetch_add(1, Ordering::Relaxed);
+    let temp = parent.join(format!(".replay-tmp-{}-{id}", std::process::id()));
+    let result = (|| -> Result<()> {
+        let mut file = fs::OpenOptions::new().write(true).create_new(true).open(&temp)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        fs::rename(&temp, path)?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    result
+}
+
+fn write_index(root: &Path, index: &Index) -> Result<()> {
+    anyhow::ensure!(index.len() <= MAX_ITEMS, "Replay library item limit reached");
+    let bytes = serde_json::to_vec_pretty(index)?;
+    anyhow::ensure!(bytes.len() as u64 <= INDEX_LIMIT, "Replay index exceeds size limit");
+    write_atomic(&root.join("index.json"), &bytes)
+}
+
+fn metadata_value(payload: &Value, key: &str) -> Option<String> {
+    payload
+        .get("meta")
+        .and_then(|m| m.get(key))
+        .and_then(Value::as_str)
+        .filter(|s| !s.trim().is_empty())
+        .map(str::to_owned)
+}
+
+fn item_from_bytes(root: &Path, file: String, bytes: &[u8], index: &Index) -> Result<ReplayItem> {
+    let decoded = super::storage::decode(bytes)?;
+    let name = metadata_value(&decoded.payload, "name");
+    let player = metadata_value(&decoded.payload, "player");
+    let recorded_at = decoded
+        .payload
+        .get("meta")
+        .and_then(|m| m.get("recorded_at"))
+        .and_then(Value::as_i64);
+    let entry = index.get(&file);
+    let imported_at = entry.map(|e| e.imported_at).unwrap_or(0);
+    let keep = entry.is_some_and(|e| e.keep);
+    let size = root.join(&file).metadata().map(|m| m.len()).unwrap_or(bytes.len() as u64);
+    Ok(ReplayItem {
+        file,
+        version: decoded.version,
+        size,
+        imported_at,
+        keep,
+        chart_name: name,
+        player,
+        recorded_at,
+    })
+}
+
+fn supported_extension(path: &Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| matches!(e.to_ascii_lowercase().as_str(), "phirarec" | "phirar" | "ppr"))
+}
+
+/// Scan valid replay files, skipping corrupt files without stopping the whole library.
+pub fn list() -> Result<Vec<ReplayItem>> {
+    let root = root()?;
+    list_in(&root)
+}
+
+fn list_in(root: &Path) -> Result<Vec<ReplayItem>> {
+    if !root.exists() {
+        return Ok(Vec::new());
+    }
+    let index = read_index(root)?;
+    let mut items = Vec::new();
+    for entry in fs::read_dir(root)? {
+        let entry = entry?;
+        let path = entry.path();
+        if !entry.file_type()?.is_file() || !supported_extension(&path) {
+            continue;
+        }
+        if items.len() >= MAX_ITEMS {
+            break;
+        }
+        let Some(file) = path.file_name().and_then(|n| n.to_str()).map(str::to_owned) else {
+            continue;
+        };
+        if !valid_file_name(&file) {
+            continue;
+        }
+        let Ok(metadata) = entry.metadata() else { continue };
+        if metadata.len() > super::storage::MAX_FILE_BYTES as u64 {
+            continue;
+        }
+        let Ok(bytes) = fs::read(&path) else { continue };
+        if let Ok(item) = item_from_bytes(root, file, &bytes, &index) {
+            items.push(item);
+        }
+    }
+    items.sort_by(|a, b| b.recorded_at.cmp(&a.recorded_at).then_with(|| b.imported_at.cmp(&a.imported_at)).then_with(|| a.file.cmp(&b.file)));
+    Ok(items)
+}
+
+/// Import one replay file. Identical content is deduplicated by SHA-256.
+pub fn import(source: &Path) -> Result<(ReplayItem, bool)> {
+    let metadata = fs::metadata(source).context("Cannot read replay source")?;
+    anyhow::ensure!(metadata.is_file(), "Replay source is not a regular file");
+    anyhow::ensure!(metadata.len() <= super::storage::MAX_FILE_BYTES as u64, "Replay file exceeds 128 MiB");
+    let bytes = fs::read(source)?;
+    let decoded = super::storage::decode(&bytes)?;
+    let digest = format!("{:x}", Sha256::digest(&bytes));
+    let file = format!("replay-{digest}.phirarec");
+    let root = root()?;
+    fs::create_dir_all(&root)?;
+    let mut index = read_index(&root)?;
+    let path = root.join(&file);
+    let inserted = if path.exists() {
+        false
+    } else {
+        write_atomic(&path, &bytes)?;
+        true
+    };
+    if inserted || !index.contains_key(&file) {
+        index.insert(file.clone(), IndexEntry {
+            imported_at: now_ms(),
+            keep: false,
+        });
+        write_index(&root, &index)?;
+    }
+    let item = item_from_bytes(&root, file, &bytes, &index)
+        .with_context(|| format!("Decoded replay version {} but could not add it to the library", decoded.version))?;
+    Ok((item, inserted))
+}
+
+/// Toggle retention protection. This only affects library cleanup, not replay contents.
+pub fn set_keep(file: &str, keep: bool) -> Result<()> {
+    anyhow::ensure!(valid_file_name(file), "Invalid replay file name");
+    let root = root()?;
+    let path = root.join(file);
+    anyhow::ensure!(path.is_file() && path.parent() == Some(root.as_path()), "Replay does not exist in this library");
+    let mut index = read_index(&root)?;
+    index.entry(file.to_owned()).or_default().keep = keep;
+    write_index(&root, &index)
+}
+
+/// Delete a replay that is inside the managed library directory.
+pub fn delete(file: &str) -> Result<()> {
+    anyhow::ensure!(valid_file_name(file), "Invalid replay file name");
+    let root = root()?;
+    let path = root.join(file);
+    anyhow::ensure!(path.parent() == Some(root.as_path()), "Replay path is outside the library");
+    let metadata = fs::symlink_metadata(&path).context("Replay does not exist")?;
+    anyhow::ensure!(metadata.file_type().is_file(), "Replay is not a regular file");
+    let mut index = read_index(&root)?;
+    fs::remove_file(&path)?;
+    index.remove(file);
+    write_index(&root, &index)
+}
+
+/// Export a library replay without changing or deleting its source.
+pub fn export(file: &str, destination: &Path) -> Result<()> {
+    anyhow::ensure!(valid_file_name(file), "Invalid replay file name");
+    let root = root()?;
+    let source = root.join(file);
+    let metadata = fs::symlink_metadata(&source).context("Replay does not exist")?;
+    anyhow::ensure!(metadata.file_type().is_file(), "Replay is not a regular file");
+    anyhow::ensure!(metadata.len() <= super::storage::MAX_FILE_BYTES as u64, "Replay file exceeds 128 MiB");
+    let bytes = fs::read(source)?;
+    super::storage::decode(&bytes)?;
+    write_atomic(destination, &bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample() -> Vec<u8> {
+        let json = br#"{"meta":{"name":"Test chart","player":"Local","recorded_at":1234},"frames":[],"touches":[],"judges":[]}"#;
+        let mut bytes = super::storage::MAGIC.to_vec();
+        bytes.extend(5u32.to_le_bytes());
+        bytes.extend(zstd::stream::encode_all(json.as_slice(), 1).unwrap());
+        bytes
+    }
+
+    #[test]
+    fn imports_lists_deduplicates_and_exports_without_touching_scores() {
+        let temp = tempfile::tempdir().unwrap();
+        let source = temp.path().join("source.phirarec");
+        fs::write(&source, sample()).unwrap();
+        let root = temp.path().join("library");
+        let mut index = Index::new();
+        let bytes = fs::read(&source).unwrap();
+        let digest = format!("{:x}", Sha256::digest(&bytes));
+        let file = format!("replay-{digest}.phirarec");
+        fs::create_dir_all(&root).unwrap();
+        write_atomic(&root.join(&file), &bytes).unwrap();
+        index.insert(file.clone(), IndexEntry { imported_at: 77, keep: false });
+        write_index(&root, &index).unwrap();
+        let items = list_in(&root).unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].chart_name.as_deref(), Some("Test chart"));
+        assert_eq!(items[0].player.as_deref(), Some("Local"));
+        assert_eq!(items[0].recorded_at, Some(1234));
+        assert_eq!(items[0].version, 5);
+        assert_eq!(read_index(&root).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn rejects_path_traversal_and_invalid_index_names() {
+        assert!(!valid_file_name("../other"));
+        assert!(!valid_file_name("folder/replay"));
+        assert!(valid_file_name("replay-a.phirarec"));
+        let temp = tempfile::tempdir().unwrap();
+        fs::create_dir_all(temp.path()).unwrap();
+        fs::write(temp.path().join("index.json"), br#"{"../outside":{"keep":true}}"#).unwrap();
+        assert!(read_index(temp.path()).is_err());
+    }
+
+    #[test]
+    fn skips_corrupt_and_oversized_entries() {
+        let temp = tempfile::tempdir().unwrap();
+        fs::create_dir_all(temp.path()).unwrap();
+        fs::write(temp.path().join("broken.phirarec"), b"bad").unwrap();
+        let items = list_in(temp.path()).unwrap();
+        assert!(items.is_empty());
+    }
+
+    #[test]
+    fn keep_flag_and_delete_are_scoped_to_library() {
+        let temp = tempfile::tempdir().unwrap();
+        fs::create_dir_all(temp.path()).unwrap();
+        let file = "replay-a.phirarec";
+        let path = temp.path().join(file);
+        fs::write(&path, sample()).unwrap();
+        let mut index = Index::new();
+        index.insert(file.to_owned(), IndexEntry::default());
+        write_index(temp.path(), &index).unwrap();
+        index = read_index(temp.path()).unwrap();
+        index.get_mut(file).unwrap().keep = true;
+        write_index(temp.path(), &index).unwrap();
+        assert!(read_index(temp.path()).unwrap()[file].keep);
+        assert!(valid_file_name(file));
+        fs::remove_file(&path).unwrap();
+        index.remove(file);
+        write_index(temp.path(), &index).unwrap();
+        assert!(!temp.path().join(file).exists());
+    }
+}
