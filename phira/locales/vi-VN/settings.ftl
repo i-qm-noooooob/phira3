@@ -143,3 +143,7 @@ item-antialiasing-sub = Chuyển giữa tắt, FXAA và MSAA 2x.
 antialiasing-off = Tắt
 antialiasing-fxaa = FXAA
 antialiasing-msaa2 = MSAA 2x
+
+item-replay-library = Thư viện replay
+item-replay-library-sub = Nhập và xem thông tin replay cục bộ. Replay nhập vào không ảnh hưởng điểm xếp hạng.
+item-replay-library-open = Mở
