@@ -184,3 +184,6 @@ replay-pause = Tạm dừng
 replay-play = Phát
 replay-library-search = Tìm replay theo chart, người chơi hoặc tên tệp
 replay-library-no-matches = Không có replay phù hợp với nội dung tìm kiếm.
+replay-library-sort-recent = Gần đây
+replay-library-sort-name = Tên chart
+replay-library-sort-size = Dung lượng tệp
