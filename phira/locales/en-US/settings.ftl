@@ -139,3 +139,10 @@ fps-pos-top-left = Top left
 fps-pos-top-right = Top right
 fps-pos-bottom-left = Bottom left
 fps-pos-bottom-right = Bottom right
+
+item-quality-preset = Gameplay quality preset
+item-quality-preset-sub = Cycle between lighter and sharper rendering settings.
+quality-preset-low = Low
+quality-preset-standard = Standard
+quality-preset-high = High
+quality-preset-custom = Custom
