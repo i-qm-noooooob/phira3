@@ -290,7 +290,7 @@ fn delete_in(root: &Path, file: &str) -> Result<()> {
 
 fn valid_local_chart_path(path: &str) -> bool {
     !path.is_empty()
-        && !path.contains('\\\\')
+        && !path.contains('\\')
         && !path.contains(':')
         && Path::new(path)
             .components()
