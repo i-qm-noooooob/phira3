@@ -168,3 +168,11 @@ replay-library-kept = kept
 replay-library-local = local
 replay-library-empty = No replay files yet. Import .phirarec, .phirar, .ppr or a ZIP package.
 replay-library-more = more replay(s) not shown
+
+replay-library-keep = Keep
+replay-library-unkeep = Unkeep
+replay-library-select = Select a replay
+replay-library-delete = Delete
+replay-library-export = Export
+replay-library-delete-title = Delete replay
+replay-library-delete-confirm = Delete this replay from the local library? This cannot be undone.
