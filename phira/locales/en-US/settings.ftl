@@ -113,3 +113,9 @@ about-content =
   { $localization }
 
   And many more voluntary chart reviewers. For a full list please refer to https://phira.moe/staff .
+
+item-touch-color = Touch Point Color
+item-touch-color-sub = Cycle through marker colors; reset restores the default.
+item-touch-alpha = Touch Point Opacity
+item-touch-size = Touch Point Size
+color-reset = Reset
