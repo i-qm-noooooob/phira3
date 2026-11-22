@@ -845,6 +845,7 @@ impl AudioList {
 struct ChartList {
     show_acc_btn: DRectButton,
     show_fps_btn: DRectButton,
+    fps_position_btn: DRectButton,
     ap_fc_indicator_btn: DRectButton,
     show_avg_fps_btn: DRectButton,
     dc_pause_btn: DRectButton,
@@ -860,6 +861,7 @@ impl ChartList {
         Self {
             show_acc_btn: DRectButton::new(),
             show_fps_btn: DRectButton::new(),
+            fps_position_btn: DRectButton::new(),
             ap_fc_indicator_btn: DRectButton::new(),
             show_avg_fps_btn: DRectButton::new(),
             dc_pause_btn: DRectButton::new(),
@@ -884,6 +886,10 @@ impl ChartList {
         }
         if self.show_fps_btn.touch(touch, t) {
             config.show_fps ^= true;
+            return Ok(Some(true));
+        }
+        if self.fps_position_btn.touch(touch, t) {
+            config.fps_position = (config.fps_position.min(5) + 1) % 6;
             return Ok(Some(true));
         }
         if self.ap_fc_indicator_btn.touch(touch, t) {
@@ -944,6 +950,11 @@ impl ChartList {
         item! {
             render_title(ui, "Show FPS overlay", None);
             render_switch(ui, rr, t, &mut self.show_fps_btn, config.show_fps);
+        }
+        item! {
+            render_title(ui, "FPS position", Some("Tap to cycle through six positions"));
+            let positions = ["Top center", "Bottom center", "Top left", "Top right", "Bottom left", "Bottom right"];
+            self.fps_position_btn.render_text(ui, rr, t, positions[config.fps_position.min(5) as usize], 0.5, false);
         }
         item! {
             render_title(ui, tl!("item-ap-fc-indicator"), Some(tl!("item-ap-fc-indicator-sub")));
