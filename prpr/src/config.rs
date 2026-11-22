@@ -89,6 +89,12 @@ pub struct Config {
     pub show_avg_fps: bool,
     pub speed: f32,
     pub touch_debug: bool,
+    /// Touch marker color in RGB hex (RRGGBB).
+    pub touch_point_color: u32,
+    /// Touch marker opacity, clamped to 0..=1 when rendered.
+    pub touch_point_alpha: f32,
+    /// Touch marker radius in gameplay coordinates.
+    pub touch_point_size: f32,
     pub use_keyboard: bool,
     pub volume_bgm: f32,
     pub volume_music: f32,
@@ -134,6 +140,9 @@ impl Default for Config {
             show_avg_fps: false,
             speed: 1.,
             touch_debug: false,
+            touch_point_color: 0xff3b30,
+            touch_point_alpha: 0.4,
+            touch_point_size: 0.04,
             use_keyboard: false,
             volume_music: 1.,
             volume_sfx: 1.,
