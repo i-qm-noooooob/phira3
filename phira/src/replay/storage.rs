@@ -410,7 +410,9 @@ mod tests {
         let payload = jphirarec_payload();
         let mut v0 = MAGIC.to_vec();
         v0.extend(0u32.to_le_bytes());
-        v0.extend(&payload);
+        let mut v0_payload = payload.clone();
+        v0_payload.drain(4..12); // v0 predates the recorded_at field.
+        v0.extend(v0_payload);
         let parsed = decode(&v0).unwrap();
         assert_eq!(parsed.payload["meta"]["player"], "Ken");
         assert_eq!(parsed.payload["judges"][0]["kind"], 0);
