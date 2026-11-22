@@ -1,4 +1,4 @@
-prpr_l10n::tl_file!("replays");
+prpr_l10n::tl_file!("settings");
 
 use super::{Page, SharedState};
 use crate::replay::library::{self, ReplayItem};
@@ -72,6 +72,7 @@ impl Page for ReplayLibraryPage {
     }
 
     fn render(&mut self, ui: &mut Ui, s: &mut SharedState) -> Result<()> {
+        let t = s.t;
         s.render_fader(ui, |ui| {
             let area = ui.content_rect().feather(-0.025);
             ui.fill_path(&area.rounded(0.02), semi_black(0.48));
@@ -85,7 +86,7 @@ impl Page for ReplayLibraryPage {
             self.import_btn.render_text(
                 ui,
                 Rect::new(area.x + 0.025, button_y, button_w, 0.075),
-                s.t,
+                t,
                 tl!("replay-library-import"),
                 0.34,
                 false,
