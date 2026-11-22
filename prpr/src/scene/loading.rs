@@ -131,7 +131,7 @@ impl LoadingScene {
     ) -> Result<Self> {
         let (background, theme_color) = match preloaded {
             Some((ill, bg, color)) => (Some((ill, bg)), color),
-            None => match Self::load(fs.as_mut(), &info.illustration).await {
+            None => match Self::load(fs.as_mut(), &info.illustration, config.gameplay_background_blur).await {
                 Ok((ill, bg, color)) => (Some((ill, bg)), color),
                 Err(err) => {
                     warn!("failed to load background: {err:?}");
