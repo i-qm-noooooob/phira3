@@ -6,7 +6,7 @@ use anyhow::Result;
 use macroquad::prelude::*;
 use prpr::{
     ext::{poll_future, semi_black, LocalTask, RectExt},
-    scene::{request_file, show_error},
+    scene::{request_file, show_error, NextScene},
     ui::{DRectButton, Dialog, Ui},
 };
 use std::{
@@ -36,7 +36,10 @@ pub struct ReplayLibraryPage {
     delete_btn: DRectButton,
     export_btn: DRectButton,
     match_btn: DRectButton,
+    play_btn: DRectButton,
     match_task: LocalTask<Result<(String, library::Match)>>,
+    play_task: LocalTask<Result<crate::scene::ReplayScene>>,
+    ready_scene: Option<crate::scene::ReplayScene>,
     status: Option<String>,
     delete_confirm: Arc<AtomicBool>,
     delete_file: Option<String>,
@@ -58,7 +61,10 @@ impl ReplayLibraryPage {
             delete_btn: DRectButton::new(),
             export_btn: DRectButton::new(),
             match_btn: DRectButton::new(),
+            play_btn: DRectButton::new(),
             match_task: None,
+            play_task: None,
+            ready_scene: None,
             status: None,
             delete_confirm: Arc::default(),
             delete_file: None,
@@ -135,6 +141,14 @@ impl Page for ReplayLibraryPage {
                     self.status = Some(tl!("replay-library-match-failed").into_owned());
                     show_error(err);
                 }
+            }
+        }
+
+        if let Some(result) = self.play_task.as_mut().and_then(|task| poll_future(task.as_mut())) {
+            self.play_task = None;
+            match result {
+                Ok(scene) => self.ready_scene = Some(scene),
+                Err(err) => show_error(err),
             }
         }
 
@@ -244,6 +258,18 @@ impl Page for ReplayLibraryPage {
             return Ok(true);
         }
 
+        if self.play_btn.touch(touch, t) {
+            if self.play_task.is_none() && self.ready_scene.is_none() {
+                if let Some(file) = self.selected_item().map(|item| item.file.clone()) {
+                    self.status = Some(tl!("replay-library-loading").into_owned());
+                    self.play_task = Some(Box::pin(async move {
+                        crate::scene::ReplayScene::new(file).await
+                    }));
+                }
+            }
+            return Ok(true);
+        }
+
         for (index, button) in self.item_buttons.iter_mut().take(self.visible_items).enumerate() {
             if button.touch(touch, t) {
                 self.selected = Some(index);
@@ -251,6 +277,14 @@ impl Page for ReplayLibraryPage {
             }
         }
         Ok(false)
+    }
+
+
+    fn next_scene(&mut self, _s: &mut SharedState) -> NextScene {
+        self.ready_scene
+            .take()
+            .map(|scene| NextScene::Overlay(Box::new(scene)))
+            .unwrap_or_default()
     }
 
     fn render(&mut self, ui: &mut Ui, s: &mut SharedState) -> Result<()> {
@@ -274,7 +308,7 @@ impl Page for ReplayLibraryPage {
             );
 
             let action_y = button_y + 0.09;
-            let action_w = (area.w - 0.125) / 4.;
+            let action_w = (area.w - 0.15) / 5.;
             let (has_selected, keep_label) = self
                 .selected_item()
                 .map(|item| {
@@ -313,6 +347,14 @@ impl Page for ReplayLibraryPage {
                 tl!("replay-library-match"),
                 0.28,
                 has_selected && self.match_task.is_none(),
+            );
+            self.play_btn.render_text(
+                ui,
+                Rect::new(area.x + 0.125 + action_w * 4., action_y, action_w, 0.07),
+                t,
+                tl!("replay-library-play"),
+                0.28,
+                has_selected && self.play_task.is_none() && self.ready_scene.is_none(),
             );
 
             let mut y = action_y + 0.095;
