@@ -226,7 +226,7 @@ pub fn import_package(source: &Path) -> Result<Vec<(ReplayItem, bool)>> {
     let mut total = 0u64;
 
     for i in 0..archive.len() {
-        let mut entry = archive.by_index(i)?;
+        let entry = archive.by_index(i)?;
         if entry.is_dir() {
             continue;
         }
