@@ -200,7 +200,7 @@ fn import_in(source: &Path, root: &Path) -> Result<(ReplayItem, bool)> {
         write_index(root, &index)?;
     }
     let item = item_from_bytes(root, file, &bytes, &index)
-        .with_context(|| format!("Decoded replay version {} but could not add it to the library", decoded.version))?;
+        .with_context(|| format!("Decoded replay version {} but could not add it to the library", decoded.source_version))?;
     Ok((item, inserted))
 }
 
