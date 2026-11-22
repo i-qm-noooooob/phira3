@@ -50,6 +50,9 @@ pub struct ReplayScene {
     step_forward_button: DRectButton,
     prev_error_button: DRectButton,
     next_error_button: DRectButton,
+    timeline_button: DRectButton,
+    timeline_drag_id: Option<u64>,
+    timeline_drag_target: Option<f64>,
     errors: Vec<f64>,
     selected_error: Option<usize>,
     exit: bool,
@@ -164,6 +167,9 @@ impl ReplayScene {
             step_forward_button: DRectButton::new(),
             prev_error_button: DRectButton::new(),
             next_error_button: DRectButton::new(),
+            timeline_button: DRectButton::new(),
+            timeline_drag_id: None,
+            timeline_drag_target: None,
             errors,
             selected_error: None,
             exit: false,
@@ -262,6 +268,20 @@ impl ReplayScene {
         Ok(())
     }
 
+    fn timeline_button_left(&self) -> f32 {
+        self.timeline_rect().x
+    }
+
+    fn timeline_button_width(&self) -> f32 {
+        self.timeline_rect().w
+    }
+
+    fn timeline_rect(&self) -> Rect {
+        let area = self.game.res.camera.viewport.unwrap_or(Rect::new(0., 0., screen_width(), screen_height()));
+        let y = area.y + area.h - 0.09;
+        Rect::new(area.x + 0.025, y - 0.035, area.w - 0.05, 0.03)
+    }
+
     fn seek_by(&mut self, delta: f64) -> Result<()> {
         let target = (self.current + delta).clamp(0., self.game.res.track_length.max(0.));
         let was_playing = self.playing;
@@ -311,6 +331,46 @@ impl Scene for ReplayScene {
             self.playing = false;
             self.exit = true;
             return Ok(true);
+        }
+        match touch.phase {
+            TouchPhase::Started if self.timeline_button.inner.contains(touch.position) => {
+                self.timeline_drag_id = Some(touch.id);
+                self.timeline_drag_target = transport::timeline_target(
+                    touch.position.x,
+                    self.timeline_button_left(),
+                    self.timeline_button_width(),
+                    self.game.res.track_length.max(0.),
+                );
+                return Ok(true);
+            }
+            TouchPhase::Moved | TouchPhase::Stationary if self.timeline_drag_id == Some(touch.id) => {
+                self.timeline_drag_target = transport::timeline_target(
+                    touch.position.x,
+                    self.timeline_button_left(),
+                    self.timeline_button_width(),
+                    self.game.res.track_length.max(0.),
+                );
+                return Ok(true);
+            }
+            TouchPhase::Ended if self.timeline_drag_id == Some(touch.id) => {
+                self.timeline_drag_id = None;
+                self.timeline_drag_target = transport::timeline_target(
+                    touch.position.x,
+                    self.timeline_button_left(),
+                    self.timeline_button_width(),
+                    self.game.res.track_length.max(0.),
+                ).or(self.timeline_drag_target);
+                if let Some(target) = self.timeline_drag_target.take() {
+                    self.seek_by(target - self.current)?;
+                }
+                return Ok(true);
+            }
+            TouchPhase::Cancelled if self.timeline_drag_id == Some(touch.id) => {
+                self.timeline_drag_id = None;
+                self.timeline_drag_target = None;
+                return Ok(true);
+            }
+            _ => {}
         }
         if self.backward_button.touch(touch, t) {
             self.seek_by(-5.)?;
@@ -477,10 +537,16 @@ impl Scene for ReplayScene {
             .render_text(ui, Rect::new(area.x + 0.14 + w * 3., y, w, 0.07), tm.now() as f32, "+5s", 0.28, true);
         let total = self.game.res.track_length.max(0.001);
         let progress = (self.current / total).clamp(0., 1.);
-        ui.text(format!("{:.1}s / {:.1}s  ·  {:.0}%", self.current, total, progress * 100.))
-            .pos(area.x + 0.025, y - 0.035)
-            .size(0.25)
-            .draw();
+        let timeline_time = self.timeline_drag_target.unwrap_or(self.current);
+        let timeline_progress = (timeline_time / total).clamp(0., 1.);
+        self.timeline_button.render_text(
+            ui,
+            Rect::new(area.x + 0.025, y - 0.035, area.w - 0.05, 0.03),
+            tm.now() as f32,
+            format!("{:.1}s / {:.1}s  ·  {:.0}%", timeline_time, total, timeline_progress * 100.),
+            0.22,
+            false,
+        );
         Ok(())
     }
 
