@@ -1125,9 +1125,14 @@ impl DebugList {
             return Ok(Some(true));
         }
         if self.touch_color_btn.touch(touch, t) {
-            const COLORS: [u32; 10] = [0xff3b30, 0xffffff, 0x000000, 0xff9500, 0xffd60a, 0x34c759, 0x5ac8fa, 0x0a84ff, 0xaf52de, 0xff2d55];
+            const COLORS: [u32; 10] = [
+                0xff3b30, 0xffffff, 0x000000, 0xff9500, 0xffd60a, 0x34c759, 0x5ac8fa, 0x0a84ff, 0xaf52de, 0xff2d55,
+            ];
             let current = config.touch_point_color & 0x00ff_ffff;
-            let next = COLORS.iter().position(|color| *color == current).map_or(0, |i| (i + 1) % COLORS.len());
+            let next = COLORS
+                .iter()
+                .position(|color| *color == current)
+                .map_or(0, |i| (i + 1) % COLORS.len());
             config.touch_point_color = COLORS[next];
             return Ok(Some(true));
         }
