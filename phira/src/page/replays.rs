@@ -508,7 +508,7 @@ impl Page for ReplayLibraryPage {
                 self.page_size = available.max(1);
                 self.visible_start = self.visible_start.min(filtered.len().saturating_sub(1));
                 self.visible_items = self.page_size.min(filtered.len().saturating_sub(self.visible_start));
-                for (slot, index) in filtered.iter().copied().skip(self.visible_start).take(self.visible_items).enumerate() {
+                for index in filtered.iter().copied().skip(self.visible_start).take(self.visible_items) {
                     let item = &self.items[index];
                     let rect = Rect::new(area.x + 0.015, y, area.w - 0.03, line_h - 0.008);
                     self.item_buttons[index].render_text(
