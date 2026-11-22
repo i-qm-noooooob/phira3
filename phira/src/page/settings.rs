@@ -195,6 +195,10 @@ impl Page for SettingsPage {
         Ok(())
     }
 
+    fn next_page(&mut self) -> NextPage {
+        self.list_chart.next_page.take().unwrap_or_default()
+    }
+
     fn touch(&mut self, touch: &Touch, s: &mut SharedState) -> Result<bool> {
         if self.list_debug.export_busy() {
             return Ok(true);
@@ -499,6 +503,10 @@ impl GeneralList {
     }
 
     pub fn touch(&mut self, touch: &Touch, t: f32) -> Result<Option<bool>> {
+        if self.replay_library_btn.touch(touch, t) {
+            self.next_page = Some(NextPage::Overlay(Box::new(super::ReplayLibraryPage::new())));
+            return Ok(Some(false));
+        }
         let data = get_data_mut();
         let config = &mut data.config;
         if self.lang_btn.touch(touch, t) {
@@ -919,6 +927,8 @@ struct ChartList {
     background_dim_slider: Slider,
     combo_text_btn: DRectButton,
     show_perfect_combo_btn: DRectButton,
+    replay_library_btn: DRectButton,
+    next_page: Option<NextPage>,
 }
 
 impl ChartList {
@@ -942,6 +952,8 @@ impl ChartList {
             background_dim_slider: Slider::new(0.0..1.0, 0.01),
             combo_text_btn: DRectButton::new(),
             show_perfect_combo_btn: DRectButton::new(),
+            replay_library_btn: DRectButton::new(),
+            next_page: None,
         }
     }
 
@@ -1052,6 +1064,10 @@ impl ChartList {
 
         let data = get_data();
         let config = &data.config;
+        item! {
+            render_title(ui, tl!("item-replay-library"), Some(tl!("item-replay-library-sub")));
+            self.replay_library_btn.render_text(ui, rr, t, tl!("item-replay-library-open"), 0.5, false);
+        }
         item! {
             render_title(ui, tl!("item-quality-preset"), Some(tl!("item-quality-preset-sub")));
             let label = match quality_preset_index(config) {
