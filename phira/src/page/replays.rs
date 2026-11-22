@@ -52,6 +52,8 @@ pub struct ReplayLibraryPage {
     search_btn: DRectButton,
     search_clear_btn: RectButton,
     search: String,
+    sort_btn: DRectButton,
+    sort_mode: usize,
     keep_btn: DRectButton,
     delete_btn: DRectButton,
     export_btn: DRectButton,
@@ -84,6 +86,8 @@ impl ReplayLibraryPage {
             search_btn: DRectButton::new(),
             search_clear_btn: RectButton::new(),
             search: String::new(),
+            sort_btn: DRectButton::new(),
+            sort_mode: 0,
             keep_btn: DRectButton::new(),
             delete_btn: DRectButton::new(),
             export_btn: DRectButton::new(),
@@ -117,11 +121,32 @@ impl ReplayLibraryPage {
     }
 
     fn filtered_indices(&self) -> Vec<usize> {
-        self.items
+        let mut indices = self
+            .items
             .iter()
             .enumerate()
             .filter_map(|(index, item)| replay_matches_search(item, &self.search).then_some(index))
-            .collect()
+            .collect::<Vec<_>>();
+        match self.sort_mode {
+            1 => indices.sort_by(|a, b| {
+                self.items[*a]
+                    .chart_name
+                    .as_deref()
+                    .unwrap_or_default()
+                    .to_lowercase()
+                    .cmp(&self.items[*b].chart_name.as_deref().unwrap_or_default().to_lowercase())
+                    .then_with(|| self.items[*a].file.cmp(&self.items[*b].file))
+            }),
+            2 => indices.sort_by(|a, b| self.items[*b].size.cmp(&self.items[*a].size)),
+            _ => indices.sort_by(|a, b| {
+                self.items[*b]
+                    .recorded_at
+                    .cmp(&self.items[*a].recorded_at)
+                    .then_with(|| self.items[*b].imported_at.cmp(&self.items[*a].imported_at))
+                    .then_with(|| self.items[*a].file.cmp(&self.items[*b].file))
+            }),
+        }
+        indices
     }
 
     fn selected_item(&self) -> Option<&ReplayItem> {
@@ -263,6 +288,11 @@ impl Page for ReplayLibraryPage {
             request_input("replay-search", InputBox::new().default_text(&self.search));
             return Ok(true);
         }
+        if self.sort_btn.touch(touch, t) {
+            self.sort_mode = (self.sort_mode + 1) % 3;
+            self.visible_start = 0;
+            return Ok(true);
+        }
         if self.import_btn.touch(touch, t) {
             request_file("_import_replay");
             return Ok(true);
@@ -370,13 +400,28 @@ impl Page for ReplayLibraryPage {
             );
 
             let search_y = button_y + 0.09;
-            let search_rect = Rect::new(area.x + 0.025, search_y, area.w - 0.05, 0.065);
-            self.search_btn.render_text(ui, search_rect, t, if self.search.is_empty() { tl!("replay-library-search") } else { Cow::Borrowed(self.search.as_str()) }, 0.28, false);
+            let search_w = (area.w - 0.075) * 0.70;
+            let search_rect = Rect::new(area.x + 0.025, search_y, search_w, 0.065);
+            self.search_btn.render_text(
+                ui,
+                search_rect,
+                t,
+                if self.search.is_empty() { tl!("replay-library-search") } else { Cow::Borrowed(self.search.as_str()) },
+                0.28,
+                false,
+            );
             if !self.search.is_empty() {
                 let clear_rect = Rect::new(search_rect.right() - search_rect.h, search_rect.y, search_rect.h, search_rect.h);
                 ui.text("×").pos(clear_rect.center().x, clear_rect.center().y).anchor(0.5, 0.5).size(0.35).draw();
                 self.search_clear_btn.set(ui, clear_rect);
             }
+            let sort_rect = Rect::new(search_rect.right() + 0.025, search_y, area.w - search_w - 0.10, 0.065);
+            let sort_label = match self.sort_mode {
+                1 => tl!("replay-library-sort-name"),
+                2 => tl!("replay-library-sort-size"),
+                _ => tl!("replay-library-sort-recent"),
+            };
+            self.sort_btn.render_text(ui, sort_rect, t, sort_label, 0.25, false);
             let action_y = search_y + 0.075;
             let action_w = (area.w - 0.15) / 5.;
             let (has_selected, keep_label) = self
