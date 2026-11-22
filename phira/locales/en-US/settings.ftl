@@ -152,3 +152,7 @@ item-antialiasing-sub = Cycle through off, FXAA and 2x MSAA.
 antialiasing-off = Off
 antialiasing-fxaa = FXAA
 antialiasing-msaa2 = MSAA 2x
+
+item-replay-library = Replay library
+item-replay-library-sub = Import and inspect local replay files. Imported replays never affect ranked scores.
+item-replay-library-open = Open
