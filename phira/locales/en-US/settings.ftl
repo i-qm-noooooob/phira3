@@ -191,3 +191,5 @@ replay-library-loading = Loading replay...
 replay-back = Back
 replay-pause = Pause
 replay-play = Play
+replay-library-search = Search replays by chart, player or filename
+replay-library-no-matches = No replays match this search.
