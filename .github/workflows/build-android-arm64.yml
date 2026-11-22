@@ -79,12 +79,32 @@ jobs:
           unzip -q official-base.apk -d package
           test -s package/lib/arm64-v8a/libphira.so
 
-      - name: Replace native library and re-sign APK
+      - name: Replace native library, align and re-sign APK
         run: |
           cp target/aarch64-linux-android/release/libphira.so package/lib/arm64-v8a/libphira.so
           rm -rf package/META-INF
-          (cd package && zip -X -q -r ../unsigned.apk .)
-          "${ANDROID_HOME}/build-tools/35.0.0/zipalign" -f -p 4 unsigned.apk aligned.apk
+          # Keep native libraries STORED (uncompressed); Android's native library
+          # loader requires correct ZIP alignment, including 16 KiB page alignment.
+          (cd package && zip -X -q -r ../unsigned.apk . -x 'lib/*')
+          (cd package && zip -X -0 -q -r ../unsigned.apk lib)
+          "${ANDROID_HOME}/build-tools/35.0.0/zipalign" -P 16 -f 4 unsigned.apk aligned.apk
+          "${ANDROID_HOME}/build-tools/35.0.0/zipalign" -c -P 16 -v 4 aligned.apk
+          python3 - <<'PY'
+          import struct, zipfile
+          apk = "aligned.apk"
+          with zipfile.ZipFile(apk) as z:
+              libs = [i for i in z.infolist() if i.filename.startswith("lib/") and i.filename.endswith(".so")]
+              assert libs, "No native libraries found"
+              for info in libs:
+                  assert info.compress_type == zipfile.ZIP_STORED, f"{info.filename} is compressed"
+                  with open(apk, "rb") as f:
+                      f.seek(info.header_offset)
+                      header = f.read(30)
+                      name_len, extra_len = struct.unpack_from("<HH", header, 26)
+                      data_offset = info.header_offset + 30 + name_len + extra_len
+                  assert data_offset % 16384 == 0, f"{info.filename} is not 16 KiB aligned: {data_offset}"
+                  print(f"Verified {info.filename}: stored, offset={data_offset}, 16KiB aligned")
+          PY
           keytool -genkeypair -noprompt \
             -keystore phira3-ci.keystore \
             -storepass phira3-ci-password \
@@ -99,7 +119,8 @@ jobs:
             --key-pass pass:phira3-ci-password \
             --out Phira3-arm64-v8a.apk aligned.apk
           "${ANDROID_HOME}/build-tools/35.0.0/apksigner" verify --verbose --print-certs Phira3-arm64-v8a.apk
-          unzip -l Phira3-arm64-v8a.apk | grep 'lib/arm64-v8a/libphira.so'
+          "${ANDROID_HOME}/build-tools/35.0.0/zipalign" -c -P 16 -v 4 Phira3-arm64-v8a.apk
+          unzip -t Phira3-arm64-v8a.apk
           sha256sum Phira3-arm64-v8a.apk target/aarch64-linux-android/release/libphira.so | tee SHA256SUMS.txt
 
       - name: Upload APK and native library
