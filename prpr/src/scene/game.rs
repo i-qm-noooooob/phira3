@@ -53,6 +53,8 @@ use inner::*;
 fn combo_label(config: &Config) -> &str {
     if config.autoplay() {
         "AUTOPLAY"
+    } else if config.show_perfect_combo {
+        "PERFECT\u{a0}COMBO"
     } else if config.combo_text.is_empty() {
         "COMBO"
     } else {
@@ -68,6 +70,15 @@ mod combo_label_tests {
     fn empty_label_uses_default() {
         let config = Config::default();
         assert_eq!(combo_label(&config), "COMBO");
+    }
+
+    #[test]
+    fn perfect_combo_label_is_visual_only_and_precedes_custom_text() {
+        let mut config = Config::default();
+        config.show_perfect_combo = true;
+        config.combo_text = "CUSTOM".to_owned();
+        assert_eq!(combo_label(&config), "PERFECT\\u{a0}COMBO");
+        assert!(!config.autoplay());
     }
 
     #[test]
