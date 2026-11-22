@@ -596,7 +596,8 @@ mod tests {
                 {"t": 2.0, "line": 0, "note": 1, "kind": 0, "diff": 0.01},
                 {"t": 1.0, "line": 0, "note": 0, "kind": 1, "diff": -0.02}
             ]
-        })).unwrap();
+        }))
+        .unwrap();
         let replay = ReplayTape::decode(&encoded(5, &json)).unwrap();
         assert_eq!(replay.meta.name, "Typed chart");
         assert_eq!(replay.meta.player.as_deref(), Some("Player"));
@@ -613,16 +614,10 @@ mod tests {
         let invalid_speed = encoded(5, br#"{"speed":0,"frames":[],"touches":[],"judges":[]}"#);
         assert!(ReplayTape::decode(&invalid_speed).is_err());
 
-        let invalid_touch = encoded(
-            5,
-            br#"{"frames":[],"touches":[{"phase":3,"id":1,"x":0,"y":0,"t":0}],"judges":[]}"#,
-        );
+        let invalid_touch = encoded(5, br#"{"frames":[],"touches":[{"phase":3,"id":1,"x":0,"y":0,"t":0}],"judges":[]}"#);
         assert!(ReplayTape::decode(&invalid_touch).is_err());
 
-        let invalid_judge = encoded(
-            5,
-            br#"{"frames":[],"touches":[],"judges":[{"t":0,"line":0,"note":0,"kind":10,"diff":0}]}"#,
-        );
+        let invalid_judge = encoded(5, br#"{"frames":[],"touches":[],"judges":[{"t":0,"line":0,"note":0,"kind":10,"diff":0}]}"#);
         assert!(ReplayTape::decode(&invalid_judge).is_err());
     }
 
