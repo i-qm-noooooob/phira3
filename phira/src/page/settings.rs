@@ -503,10 +503,6 @@ impl GeneralList {
     }
 
     pub fn touch(&mut self, touch: &Touch, t: f32) -> Result<Option<bool>> {
-        if self.replay_library_btn.touch(touch, t) {
-            self.next_page = Some(NextPage::Overlay(Box::new(super::ReplayLibraryPage::new())));
-            return Ok(Some(false));
-        }
         let data = get_data_mut();
         let config = &mut data.config;
         if self.lang_btn.touch(touch, t) {
@@ -962,6 +958,10 @@ impl ChartList {
     }
 
     pub fn touch(&mut self, touch: &Touch, t: f32) -> Result<Option<bool>> {
+        if self.replay_library_btn.touch(touch, t) {
+            self.next_page = Some(NextPage::Overlay(Box::new(super::ReplayLibraryPage::new())));
+            return Ok(Some(false));
+        }
         let data = get_data_mut();
         let config = &mut data.config;
         if self.quality_preset_btn.touch(touch, t) {
