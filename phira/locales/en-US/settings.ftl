@@ -186,3 +186,5 @@ replay-library-match-version = Chart version does not match this replay
 replay-library-match-audio = Chart matched, but the audio file is different
 replay-library-match-server = Replay belongs to a different Phira server
 replay-library-match-failed = Chart matching failed
+replay-library-play = Play
+replay-library-loading = Loading replay...
