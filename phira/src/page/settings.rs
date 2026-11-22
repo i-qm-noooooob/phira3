@@ -854,6 +854,7 @@ struct ChartList {
     use_keyboard_btn: DRectButton,
     speed_slider: Slider,
     size_slider: Slider,
+    combo_text_btn: DRectButton,
 }
 
 impl ChartList {
@@ -870,6 +871,7 @@ impl ChartList {
             use_keyboard_btn: DRectButton::new(),
             speed_slider: Slider::new(0.5..2., 0.05),
             size_slider: Slider::new(0.8..1.2, 0.005),
+            combo_text_btn: DRectButton::new(),
         }
     }
 
@@ -922,10 +924,22 @@ impl ChartList {
         if let wt @ Some(_) = self.size_slider.touch(touch, t, &mut config.note_scale) {
             return Ok(wt);
         }
+        if self.combo_text_btn.touch(touch, t) {
+            request_input("combo_text", InputBox::new().default_text(&config.combo_text));
+            return Ok(Some(true));
+        }
         Ok(None)
     }
 
     pub fn update(&mut self, _t: f32) -> Result<bool> {
+        if let Some((id, text)) = take_input() {
+            if id == "combo_text" {
+                let text = text.trim().chars().take(16).collect::<String>();
+                get_data_mut().config.combo_text = text;
+                return Ok(true);
+            }
+            return_input(id, text);
+        }
         Ok(false)
     }
 
@@ -987,6 +1001,11 @@ impl ChartList {
         item! {
             render_title(ui, tl!("item-note-size"), None);
             self.size_slider.render(ui, rr, t, config.note_scale, format!("{:.3}", config.note_scale));
+        }
+        item! {
+            render_title(ui, Cow::Borrowed("Combo text"), Some(Cow::Borrowed("Custom label below the combo count; max 16 characters")));
+            let label = if config.combo_text.is_empty() { "COMBO".to_owned() } else { config.combo_text.clone() };
+            self.combo_text_btn.render_text(ui, rr, t, label, 0.5, false);
         }
         (w, h)
     }
