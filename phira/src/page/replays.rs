@@ -230,18 +230,21 @@ impl Page for ReplayLibraryPage {
 
             let action_y = button_y + 0.09;
             let action_w = (area.w - 0.10) / 3.;
-            let selected = self.selected_item();
-            let keep_label = selected
+            let (has_selected, keep_label) = self
+                .selected_item()
                 .map(|item| {
-                    if item.keep {
-                        tl!("replay-library-unkeep")
-                    } else {
-                        tl!("replay-library-keep")
-                    }
+                    (
+                        true,
+                        if item.keep {
+                            tl!("replay-library-unkeep")
+                        } else {
+                            tl!("replay-library-keep")
+                        },
+                    )
                 })
-                .unwrap_or_else(|| tl!("replay-library-select"));
+                .unwrap_or_else(|| (false, tl!("replay-library-select")));
             self.keep_btn
-                .render_text(ui, Rect::new(area.x + 0.025, action_y, action_w, 0.07), t, keep_label, 0.28, selected.is_some());
+                .render_text(ui, Rect::new(area.x + 0.025, action_y, action_w, 0.07), t, keep_label, 0.28, has_selected);
             self.delete_btn.render_text(
                 ui,
                 Rect::new(area.x + 0.05 + action_w, action_y, action_w, 0.07),
