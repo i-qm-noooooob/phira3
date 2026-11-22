@@ -1,6 +1,8 @@
 //! Local-only replay playback. It reuses the regular chart renderer and never
 //! enters the ranked gameplay/update or score-submission path.
 
+prpr_l10n::tl_file!("settings");
+
 use crate::{
     replay::{
         library,
@@ -217,12 +219,12 @@ impl Scene for ReplayScene {
         let y = area.y + area.h - 0.09;
         let w = (area.w - 0.08) / 2.;
         self.back_button
-            .render_text(ui, Rect::new(area.x + 0.02, y, w, 0.07), tm.now() as f32, "Back", 0.3, true);
+            .render_text(ui, Rect::new(area.x + 0.02, y, w, 0.07), tm.now() as f32, tl!("replay-back"), 0.3, true);
         self.play_button.render_text(
             ui,
             Rect::new(area.x + 0.06 + w, y, w, 0.07),
             tm.now() as f32,
-            if self.playing { "Pause" } else { "Play" },
+            if self.playing { tl!("replay-pause") } else { tl!("replay-play") },
             0.3,
             true,
         );
