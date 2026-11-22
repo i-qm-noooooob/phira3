@@ -43,6 +43,48 @@ use tracing::{debug, warn};
 
 const PAUSE_CLICK_INTERVAL: f32 = 0.7;
 
+/// Returns a safe configured dim only when fixed gameplay background is enabled.
+fn fixed_background_dim(config: &Config) -> Option<f32> {
+    config.fixed_background.then(|| {
+        if config.background_dim.is_finite() {
+            config.background_dim.clamp(0.0, 1.0)
+        } else {
+            0.6
+        }
+    })
+}
+
+#[cfg(test)]
+mod fixed_background_dim_tests {
+    use super::*;
+
+    #[test]
+    fn disabled_option_keeps_chart_metadata_unchanged() {
+        let config = Config::default();
+        assert_eq!(fixed_background_dim(&config), None);
+    }
+
+    #[test]
+    fn enabled_option_clamps_dim_to_valid_range() {
+        let mut config = Config::default();
+        config.fixed_background = true;
+        config.background_dim = 1.5;
+        assert_eq!(fixed_background_dim(&config), Some(1.0));
+        config.background_dim = -0.5;
+        assert_eq!(fixed_background_dim(&config), Some(0.0));
+        config.background_dim = 0.25;
+        assert_eq!(fixed_background_dim(&config), Some(0.25));
+    }
+
+    #[test]
+    fn non_finite_dim_uses_default() {
+        let mut config = Config::default();
+        config.fixed_background = true;
+        config.background_dim = f32::NAN;
+        assert_eq!(fixed_background_dim(&config), Some(0.6));
+    }
+}
+
 /// Returns sanitized visual-only touch marker settings.
 fn touch_point_style(config: &Config) -> (f32, f32, u32) {
     let size = if config.touch_point_size.is_finite() {
@@ -323,7 +365,7 @@ impl GameScene {
     #[allow(clippy::too_many_arguments)]
     pub async fn new(
         mode: GameMode,
-        info: ChartInfo,
+        mut info: ChartInfo,
         mut config: Config,
         mut fs: Box<dyn FileSystem>,
         player: Option<BasicPlayer>,
@@ -333,6 +375,9 @@ impl GameScene {
         update_fn: Option<UpdateFn>,
         save_fn: Option<SaveFn>,
     ) -> Result<Self> {
+        if let Some(dim) = fixed_background_dim(&config) {
+            info.background_dim = dim;
+        }
         match mode {
             GameMode::TweakOffset => {
                 config.mods.insert(Mods::AUTOPLAY);
