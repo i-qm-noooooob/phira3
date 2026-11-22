@@ -147,3 +147,15 @@ antialiasing-msaa2 = MSAA 2x
 item-replay-library = Thư viện replay
 item-replay-library-sub = Nhập và xem thông tin replay cục bộ. Replay nhập vào không ảnh hưởng điểm xếp hạng.
 item-replay-library-open = Mở
+
+replay-library-title = Thư viện replay
+replay-library-import = Nhập replay / ZIP
+replay-library-refresh = Làm mới
+replay-library-error = Lỗi thư viện
+replay-library-count = replay
+replay-library-untitled = Replay chưa có tên
+replay-library-unknown-player = Người chơi không xác định
+replay-library-kept = đã giữ
+replay-library-local = cục bộ
+replay-library-empty = Chưa có replay. Nhập tệp .phirarec, .phirar, .ppr hoặc gói ZIP.
+replay-library-more = replay khác chưa được hiển thị
