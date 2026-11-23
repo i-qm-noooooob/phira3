@@ -197,8 +197,7 @@ impl SimpleRecord {
             changed = true;
         }
         if other.accuracy > self.accuracy {
-            self.accuracy = other.accuracy;
-            changed = true;
+            self.accuracy = other.accuracy;            changed = true;
         }
         if other.full_combo & !self.full_combo {
             self.full_combo = other.full_combo;
@@ -397,8 +396,7 @@ impl GameScene {
         if config.fxaa {
             chart
                 .extra
-                .effects
-                .push(Effect::new(0.0..f64::INFINITY, include_str!("fxaa.glsl"), Vec::new(), false).unwrap());
+                .effects                .push(Effect::new(0.0..f64::INFINITY, include_str!("fxaa.glsl"), Vec::new(), false).unwrap());
         }
 
         if config.has_mod(Mods::NIGHTCORE) {
@@ -597,8 +595,7 @@ impl GameScene {
 
             // score
             let h = 0.07;
-            let score_top = top + eps * 2.2 - (1. - p) * 0.4;
-            let score_right = 1. - margin;
+            let score_top = top + eps * 2.2 - (1. - p) * 0.4;            let score_right = 1. - margin;
             let score = format!("{:07}", self.judge.score());
             let scale_point = legacy_aui.then(|| {
                 let ct = ui.text(&score).size(0.8).measure_using(&PGR_FONT).center();
@@ -797,8 +794,7 @@ impl GameScene {
                     }
                     Some(0) => {
                         reset!(self, res, tm);
-                        if self.mode == GameMode::Exercise {
-                            self.judge.advance_to(&mut self.chart, self.exercise_range.start);
+                        if self.mode == GameMode::Exercise {                            self.judge.advance_to(&mut self.chart, self.exercise_range.start);
                         }
                         #[cfg(target_env = "ohos")]
                         miniquad::native::set_interceptor_state(true);
@@ -997,8 +993,7 @@ impl GameScene {
         }
     }
     pub fn get_avg_fps(&self) -> Option<f32> {
-        if self.fps_frame_count > 0 && self.fps_total_time > 0.0 {
-            Some(self.fps_frame_count as f32 / self.fps_total_time as f32)
+        if self.fps_frame_count > 0 && self.fps_total_time > 0.0 {            Some(self.fps_frame_count as f32 / self.fps_total_time as f32)
         } else {
             None
         }
@@ -1197,8 +1192,8 @@ impl Scene for GameScene {
             self.judge.update(&mut self.res, &mut self.chart, &mut self.bad_notes);
             self.gl.quad_gl.viewport(None);
         }
-        if let Some(update) = &mut self.update_fn {
-            update(self.res.time, &mut self.res, &mut self.judge);
+        if let Some(update) = &mut self.update_fn {            let ending = matches!(&self.state, State::Ending);
+            update(self.res.time, ending, &mut self.res, &mut self.judge);
         }
         let counts = self.judge.counts();
         self.res.judge_line_color = if counts[2] + counts[3] == 0 && self.res.config.ap_fc_indicator {
@@ -1397,8 +1392,7 @@ impl Scene for GameScene {
                 zoom: vec2(1., asp),
                 ..Default::default()
             });
-            for e in &self.effects {
-                e.render(&mut self.res);
+            for e in &self.effects {                e.render(&mut self.res);
             }
             pop_camera_state();
         }
