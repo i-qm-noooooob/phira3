@@ -1004,8 +1004,11 @@ impl SongScene {
             let mut ending_frames = 0u32;
             let mut saved = false;
             Some(Box::new(move |t, res, judge| {
+                let frame_judgements = judge.judgements.borrow().clone();
                 if let Some(update) = &mut multiplayer_update {
                     update(t, res, judge);
+                } else {
+                    judge.judgements.borrow_mut().clear();
                 }
                 if saved {
                     return;
@@ -1065,7 +1068,7 @@ impl SongScene {
                         }
                     }
                 }
-                for (judge_time, line, note, outcome) in judge.judgements.borrow_mut().drain(..) {
+                for (judge_time, line, note, outcome) in frame_judgements {
                     if tape.judges.len() >= crate::replay::storage::MAX_EVENTS {
                         break;
                     }
