@@ -1003,7 +1003,7 @@ impl SongScene {
             let mut last_time = -1.0f64;
             let mut ending_frames = 0u32;
             let mut saved = false;
-            Some(Box::new(move |t, res, judge| {
+            Some(Box::new(move |t: f64, res: &mut Resource, judge: &mut Judge| {
                 let frame_judgements = judge.judgements.borrow().clone();
                 if let Some(update) = &mut multiplayer_update {
                     update(t, res, judge);
