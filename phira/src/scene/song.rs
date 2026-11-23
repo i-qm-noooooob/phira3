@@ -35,7 +35,7 @@ use once_cell::sync::Lazy;
 use phira_mp_common::{ClientCommand, CompactPos, JudgeEvent, TouchFrame};
 use prpr::{
     config::Mods,
-    core::{Tweenable, BOLD_FONT},
+    core::{Resource, Tweenable, BOLD_FONT},
     ext::{
         open_url, poll_future, rect_shadow, semi_black, semi_white, unzip_into, JoinToString, LocalTask, RectExt, SafeTexture, ScaleType,
         BLACK_TEXTURE,
