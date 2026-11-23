@@ -1,8 +1,8 @@
 prpr_l10n::tl_file!("settings");
 
-use super::{request_export, resolve_export, take_export, ExportConfig, Page, SharedState};
+use super::{request_export, resolve_export, take_export, ChartItem, ExportConfig, Page, SharedState};
 use crate::replay::library::{self, ReplayItem};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use inputbox::InputBox;
 use macroquad::prelude::*;
 use prpr::{
@@ -59,8 +59,11 @@ pub struct ReplayLibraryPage {
     export_btn: DRectButton,
     match_btn: DRectButton,
     play_btn: DRectButton,
+    download_btn: DRectButton,
     match_task: LocalTask<Result<(String, library::Match)>>,
     play_task: LocalTask<Result<crate::scene::ReplayScene>>,
+    download_task: LocalTask<Result<crate::scene::SongScene>>,
+    waiting_download: bool,
     ready_scene: Option<crate::scene::ReplayScene>,
     status: Option<String>,
     delete_confirm: Arc<AtomicBool>,
@@ -93,8 +96,11 @@ impl ReplayLibraryPage {
             export_btn: DRectButton::new(),
             match_btn: DRectButton::new(),
             play_btn: DRectButton::new(),
+            download_btn: DRectButton::new(),
             match_task: None,
             play_task: None,
+            download_task: None,
+            waiting_download: false,
             ready_scene: None,
             status: None,
             delete_confirm: Arc::default(),
@@ -218,6 +224,17 @@ impl Page for ReplayLibraryPage {
             match result {
                 Ok(scene) => self.ready_scene = Some(scene),
                 Err(err) => show_error(err),
+            }
+        }
+
+        if let Some(result) = self.download_task.as_mut().and_then(|task| poll_future(task.as_mut())) {
+            self.download_task = None;
+            match result {
+                Ok(scene) => {
+                    self.waiting_download = true;
+                    self.next = Some(NextScene::Overlay(Box::new(scene)));
+                }
+                Err(err) => show_error(err.context("Cannot open online chart")),
             }
         }
 
@@ -352,6 +369,45 @@ impl Page for ReplayLibraryPage {
             return Ok(true);
         }
 
+        if self.download_btn.touch(touch, t) {
+            if self.download_task.is_none() {
+                if let Some(file) = self.selected_item().map(|item| item.file.clone()) {
+                    let replay = library::load(&file)?;
+                    if let Some(crate::replay::ChartRef::Id(id)) = replay.chart {
+                        if replay
+                            .meta
+                            .server
+                            .as_ref()
+                            .is_some_and(|server| server.trim_end_matches('/') != crate::client::api_url().trim_end_matches('/'))
+                        {
+                            show_error(anyhow::anyhow!("Switch to the replay's chart server before downloading"));
+                        } else {
+                            self.download_task = Some(Box::pin(async move {
+                                let chart = crate::client::Ptr::<crate::client::Chart>::new(id).fetch().await?;
+                                let icons = std::sync::Arc::new(crate::icons::Icons::new().await?);
+                                let ranks = prpr::core::Resource::load_icons().await?;
+                                let local = crate::get_data()
+                                    .charts
+                                    .iter()
+                                    .find(|chart| chart.info.id == Some(id))
+                                    .map(|chart| chart.local_path.clone());
+                                Ok(crate::scene::SongScene::new(
+                                    ChartItem::from_remote(&chart),
+                                    local,
+                                    icons,
+                                    ranks,
+                                    Default::default(),
+                                ))
+                            }));
+                        }
+                    } else {
+                        show_error(anyhow::anyhow!("This replay references a local chart; import that chart to use it"));
+                    }
+                }
+            }
+            return Ok(true);
+        }
+
         if self.play_btn.touch(touch, t) {
             if self.play_task.is_none() && self.ready_scene.is_none() {
                 if let Some(file) = self.selected_item().map(|item| item.file.clone()) {
@@ -370,6 +426,23 @@ impl Page for ReplayLibraryPage {
             }
         }
         Ok(false)
+    }
+
+    fn resume(&mut self) -> Result<()> {
+        self.reload();
+        if self.waiting_download {
+            self.waiting_download = false;
+            if let Some(file) = self.selected_item().map(|item| item.file.clone()) {
+                let candidates = crate::get_data().charts.iter().map(|chart| chart.local_path.clone()).collect::<Vec<_>>();
+                self.status = Some(tl!("replay-library-matching").into_owned());
+                self.match_task = Some(Box::pin(async move {
+                    let replay = library::load(&file)?;
+                    let result = library::match_chart(&replay, None, &candidates).await?;
+                    Ok((file, result))
+                }));
+            }
+        }
+        Ok(())
     }
 
     fn next_scene(&mut self, _s: &mut SharedState) -> NextScene {
@@ -431,7 +504,7 @@ impl Page for ReplayLibraryPage {
             };
             self.sort_btn.render_text(ui, sort_rect, t, sort_label, 0.25, false);
             let action_y = search_y + 0.075;
-            let action_w = (area.w - 0.15) / 5.;
+            let action_w = (area.w - 0.175) / 6.;
             let (has_selected, keep_label) = self
                 .selected_item()
                 .map(|item| {
@@ -473,11 +546,19 @@ impl Page for ReplayLibraryPage {
             );
             self.play_btn.render_text(
                 ui,
-                Rect::new(area.x + 0.125 + action_w * 4., action_y, action_w, 0.07),
+                Rect::new(area.x + 0.125 + action_w * 4. + 0.025 * 4., action_y, action_w, 0.07),
                 t,
                 tl!("replay-library-play"),
-                0.28,
+                0.25,
                 has_selected && self.play_task.is_none() && self.ready_scene.is_none(),
+            );
+            self.download_btn.render_text(
+                ui,
+                Rect::new(area.x + 0.025 + (action_w + 0.025) * 5., action_y, action_w, 0.07),
+                t,
+                tl!("replay-library-download"),
+                0.25,
+                has_selected && self.download_task.is_none(),
             );
 
             let mut y = action_y + 0.095;
