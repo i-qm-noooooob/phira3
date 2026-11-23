@@ -997,7 +997,7 @@ impl SongScene {
                     None => crate::replay::storage::ReplayChartRef::Local(replay_local_path),
                 }),
                 speed: get_data().config.speed,
-                mods: mods.bits(),
+                mods: mods.bits() as u32,
                 ..Default::default()
             };
             let mut last_time = -1.0f64;
