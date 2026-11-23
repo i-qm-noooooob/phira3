@@ -301,7 +301,10 @@ impl ReplayScene {
 
     fn checkpoint(&mut self) {
         if !self.checkpoint_step.is_finite()
-            || self.checkpoints.last().is_some_and(|checkpoint| self.current < checkpoint.t + self.checkpoint_step)
+            || self
+                .checkpoints
+                .last()
+                .is_some_and(|checkpoint| self.current < checkpoint.t + self.checkpoint_step)
         {
             return;
         }
@@ -310,7 +313,13 @@ impl ReplayScene {
             judge_index: self.judge_index,
             touch_index: self.touch_index,
             judge: self.game.judge.replay_snapshot(),
-            notes: self.game.chart.lines.iter().map(|line| line.notes.iter().map(|note| note.judge.clone()).collect()).collect(),
+            notes: self
+                .game
+                .chart
+                .lines
+                .iter()
+                .map(|line| line.notes.iter().map(|note| note.judge.clone()).collect())
+                .collect(),
             touches: self.current_touches.clone(),
         });
     }
@@ -345,6 +354,7 @@ impl ReplayScene {
         self.apply_events();
         self.apply_touches();
         self.game.tick_replay();
+        self.checkpoint();
         let audio_time = (target + self.game.offset() as f64).max(0.);
         self.game.music.seek_to(audio_time)?;
         if was_playing {
