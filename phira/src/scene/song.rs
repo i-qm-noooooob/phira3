@@ -1013,32 +1013,52 @@ impl SongScene {
                 if saved {
                     return;
                 }
-                // A retry rewinds the song clock. Discard the failed attempt so one
-                // replay file always represents exactly one completed attempt.
                 let previous_time = last_time;
-                if previous_time >= 0. && t + 0.5 < previous_time {
-                    if t > res.track_length * 0.8 && previous_time > t + 0.3 {
-                        // The game clock snaps to the chart-end position on the first ending frame.
-                        ending_frames = 1;
-                    } else {
-                        // A rewind/retry starts a fresh recording attempt.
-                        tape.frames.clear();
-                        tape.touches.clear();
-                        tape.judges.clear();
-                        ending_frames = 0;
-                    }
-                } else if ending_frames > 0 {
+                // GameScene::update clamps res.time to track_length throughout
+                // State::Ending. It does not keep counting down, and the ending
+                // animation is shorter than 45 frames at 60 FPS. Detect the stable
+                // end-time plateau instead of relying on a large backwards jump.
+                let at_end = t >= res.track_length - 1e-4;
+                if at_end && previous_time >= 0. && (t - previous_time).abs() <= 1e-4 {
                     ending_frames = ending_frames.saturating_add(1);
+                } else if at_end {
+                    ending_frames = 1;
+                } else {
+                    ending_frames = 0;
+                }
+                // A retry rewinds to the beginning before the end plateau. Clear
+                // only then; a small clock correction near the end is not a retry.
+                if previous_time >= 0. && t + 0.5 < previous_time && !at_end {
+                    tape.frames.clear();
+                    tape.touches.clear();
+                    tape.judges.clear();
                 }
                 let advancing = previous_time < 0. || t > previous_time + 0.0001;
                 last_time = t;
-                if ending_frames > 0 {
-                    if ending_frames >= 45 {
-                        saved = true;
-                        match tape.encode().and_then(|bytes| crate::replay::library::save_recording(&bytes).map(|_| ())) {
-                            Ok(()) => tracing::info!("saved local gameplay replay"),
-                            Err(err) => warn!(?err, "failed to save local gameplay replay"),
+                if ending_frames >= 3 {
+                    // Include the last frame's events before finalizing.
+                    for (judge_time, line, note, outcome) in frame_judgements {
+                        if tape.judges.len() >= crate::replay::storage::MAX_EVENTS {
+                            break;
                         }
+                        let kind = match outcome {
+                            Ok(value) => value as u8,
+                            Err(true) => 5,
+                            Err(false) => 6,
+                        };
+                        tape.judges.push(crate::replay::storage::ReplayJudge {
+                            t: judge_time,
+                            line,
+                            note,
+                            kind,
+                            diff: 0.,
+                            head_grade: None,
+                        });
+                    }
+                    saved = true;
+                    match tape.encode().and_then(|bytes| crate::replay::library::save_recording(&bytes).map(|_| ())) {
+                        Ok(()) => tracing::info!("saved local gameplay replay"),
+                        Err(err) => warn!(?err, "failed to save local gameplay replay"),
                     }
                     return;
                 }
