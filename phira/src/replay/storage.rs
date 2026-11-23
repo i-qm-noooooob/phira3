@@ -18,7 +18,7 @@ pub struct Container {
 
 /// Typed replay data used by the library and, later, the playback scene.
 /// Optional Pro-only extension objects remain opaque until their owning subsystem is ported.
-#[derive(Clone, Debug, Default, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct ReplayMetadata {
     pub id: String,
@@ -34,13 +34,13 @@ pub struct ReplayMetadata {
     pub result: Option<Value>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub enum ReplayChartRef {
     Id(i32),
     Local(String),
 }
 
-#[derive(Clone, Copy, Debug, Default, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct ReplayTouch {
     pub phase: u8,
     pub id: u64,
@@ -49,7 +49,7 @@ pub struct ReplayTouch {
     pub t: f32,
 }
 
-#[derive(Clone, Copy, Debug, Default, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct ReplayJudge {
     pub t: f64,
     pub line: u32,
@@ -63,7 +63,7 @@ fn default_speed() -> f32 {
     1.
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct ReplayTape {
     pub meta: ReplayMetadata,
@@ -119,6 +119,20 @@ impl Default for ReplayTape {
 }
 
 impl ReplayTape {
+    /// Encode a locally captured replay using the bounded v5 JSON+Zstandard container.
+    pub fn encode(&self) -> Result<Vec<u8>> {
+        self.validate()?;
+        let payload = serde_json::to_vec(self).context("Failed to serialize replay")?;
+        anyhow::ensure!(payload.len() <= MAX_FILE_BYTES, "Replay payload exceeds 128 MiB");
+        let compressed = zstd::stream::encode_all(payload.as_slice(), 3).context("Failed to compress replay")?;
+        anyhow::ensure!(compressed.len() + HEADER_BYTES <= MAX_FILE_BYTES, "Replay file exceeds 128 MiB");
+        let mut bytes = Vec::with_capacity(HEADER_BYTES + compressed.len());
+        bytes.extend_from_slice(MAGIC);
+        bytes.extend_from_slice(&5u32.to_le_bytes());
+        bytes.extend_from_slice(&compressed);
+        Ok(bytes)
+    }
+
     pub fn decode(bytes: &[u8]) -> Result<Self> {
         let container = decode(bytes)?;
         let mut replay: Self = serde_json::from_value(container.payload).context("Invalid replay event data")?;
