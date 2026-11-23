@@ -3085,3 +3085,4 @@ pub fn compress_folder<W: Write + Seek>(src: &Path, dst: &mut W) -> Result<()> {
     zip.finish()?;
     Ok(())
 }
+
