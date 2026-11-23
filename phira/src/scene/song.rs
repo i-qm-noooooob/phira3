@@ -1016,8 +1016,8 @@ impl SongScene {
                 // A retry rewinds the song clock. Discard the failed attempt so one
                 // replay file always represents exactly one completed attempt.
                 if last_time >= 0. && t + 0.5 < last_time {
-                    if last_time > res.track_length + 0.3 {
-                        // The game clock snaps back to track_length on the first ending frame.
+                    if t > res.track_length * 0.8 && last_time > t + 0.3 {
+                        // The game clock snaps to the chart-end position on the first ending frame.
                         ending_frames = 1;
                     } else {
                         // A rewind/retry starts a fresh recording attempt.
