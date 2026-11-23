@@ -391,13 +391,7 @@ impl Page for ReplayLibraryPage {
                                     .iter()
                                     .find(|chart| chart.info.id == Some(id))
                                     .map(|chart| chart.local_path.clone());
-                                Ok(crate::scene::SongScene::new(
-                                    ChartItem::from_remote(&chart),
-                                    local,
-                                    icons,
-                                    ranks,
-                                    Default::default(),
-                                ))
+                                Ok(crate::scene::SongScene::new(ChartItem::from_remote(&chart), local, icons, ranks, Default::default()))
                             }));
                         }
                     } else {
