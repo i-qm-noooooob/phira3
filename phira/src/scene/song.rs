@@ -869,7 +869,7 @@ impl SongScene {
         if !rated && can_rated && mode == GameMode::Normal {
             show_message(tl!("warn-unrated")).warn();
         }
-        let update_fn = client.and_then(|mut client| {
+        let mut multiplayer_update = client.and_then(|mut client| {
             let live = client.blocking_state().unwrap().live;
             let addr = get_data().config.mp_address.clone();
             let mut reconnect_task: Option<Task<Result<phira_mp_client::Client>>> = None;
@@ -969,6 +969,119 @@ impl SongScene {
             };
             update_fn
         });
+        // Keep multiplayer streaming intact, but always install an offline recorder for
+        // ordinary play. Replay persistence is independent from ranked score saving.
+        let update_fn: Option<UpdateFn> = if mode == GameMode::Normal {
+            let replay_local_path = local_path.to_owned();
+            let (chart_name, chart_level, chart_difficulty) = get_data()
+                .charts
+                .iter()
+                .find(|chart| chart.local_path == replay_local_path)
+                .map(|chart| (chart.info.name.clone(), chart.info.level.clone(), chart.info.difficulty))
+                .unwrap_or_else(|| ("Unknown chart".to_owned(), String::new(), 0.));
+            let player = get_data().me.as_ref().map(|user| (user.name.clone(), user.id));
+            let mut tape = crate::replay::storage::ReplayTape {
+                meta: crate::replay::storage::ReplayMetadata {
+                    id: Uuid::new_v4().to_string(),
+                    player: player.as_ref().map(|it| it.0.clone()),
+                    player_id: player.map(|it| it.1),
+                    recorded_at: Some(Utc::now().timestamp()),
+                    name: chart_name,
+                    level: chart_level,
+                    difficulty: chart_difficulty,
+                    server: Some(crate::client::API_URL.to_owned()),
+                    ..Default::default()
+                },
+                chart: Some(match id {
+                    Some(chart_id) => crate::replay::storage::ReplayChartRef::Id(chart_id),
+                    None => crate::replay::storage::ReplayChartRef::Local(replay_local_path),
+                }),
+                speed: get_data().config.speed,
+                mods: mods.bits(),
+                ..Default::default()
+            };
+            let mut last_time = -1.0f64;
+            let mut ending_frames = 0u32;
+            let mut saved = false;
+            Some(Box::new(move |t, res, judge| {
+                if let Some(update) = &mut multiplayer_update {
+                    update(t, res, judge);
+                }
+                if saved {
+                    return;
+                }
+                // A retry rewinds the song clock. Discard the failed attempt so one
+                // replay file always represents exactly one completed attempt.
+                if last_time >= 0. && t + 0.5 < last_time {
+                    tape.frames.clear();
+                    tape.touches.clear();
+                    tape.judges.clear();
+                    ending_frames = 0;
+                }
+                last_time = t;
+                // GameScene enters its ending state after the 0.5s post-track wait;
+                // the first 45 ending frames provide a stable, one-shot save point.
+                if t > res.track_length + 0.45 {
+                    ending_frames = ending_frames.saturating_add(1);
+                    if ending_frames >= 45 {
+                        saved = true;
+                        match tape.encode().and_then(|bytes| crate::replay::library::save_recording(&bytes).map(|_| ())) {
+                            Ok(()) => tracing::info!("saved local gameplay replay"),
+                            Err(err) => warn!(?err, "failed to save local gameplay replay"),
+                        }
+                    }
+                    return;
+                }
+                ending_frames = 0;
+                if tape.frames.len() < crate::replay::storage::MAX_EVENTS {
+                    tape.frames.push(t);
+                }
+                if tape.touches.len() < crate::replay::storage::MAX_EVENTS {
+                    for touch in Judge::get_touches() {
+                        if matches!(touch.phase, TouchPhase::Stationary) {
+                            continue;
+                        }
+                        let phase = if matches!(touch.phase, TouchPhase::Ended | TouchPhase::Cancelled) {
+                            2
+                        } else if matches!(touch.phase, TouchPhase::Moved) {
+                            1
+                        } else {
+                            0
+                        };
+                        tape.touches.push(crate::replay::storage::ReplayTouch {
+                            phase,
+                            id: touch.id,
+                            x: touch.position.x,
+                            y: touch.position.y * res.aspect_ratio,
+                            t: t as f32,
+                        });
+                        if tape.touches.len() >= crate::replay::storage::MAX_EVENTS {
+                            break;
+                        }
+                    }
+                }
+                for (judge_time, line, note, outcome) in judge.judgements.borrow_mut().drain(..) {
+                    if tape.judges.len() >= crate::replay::storage::MAX_EVENTS {
+                        break;
+                    }
+                    let kind = match outcome {
+                        Ok(value) => value as u8,
+                        Err(true) => 5,
+                        Err(false) => 6,
+                    };
+                    tape.judges.push(crate::replay::storage::ReplayJudge {
+                        t: judge_time,
+                        line,
+                        note,
+                        kind,
+                        diff: 0.,
+                        head_grade: None,
+                    });
+                }
+            }) as UpdateFn)
+        } else {
+            multiplayer_update
+        };
 
         let save_fn: Option<SaveFn> = Some(Box::new({
             let local_path = local_path.to_string();
