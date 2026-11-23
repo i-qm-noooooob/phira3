@@ -17,12 +17,21 @@ use prpr::{
     config::Mods,
     core::NoteKind,
     ext::BLACK_TEXTURE,
-    judge::{JudgeStatus, Judgement},
+    judge::{JudgeStatus, Judgement, ReplayJudgeState},
     scene::{GameMode, GameScene, LoadingScene, NextScene, Scene},
     time::TimeManager,
     ui::{DRectButton, Ui},
 };
 use std::collections::HashMap;
+
+struct ReplayCheckpoint {
+    t: f64,
+    judge_index: usize,
+    touch_index: usize,
+    judge: ReplayJudgeState,
+    notes: Vec<Vec<JudgeStatus>>,
+    touches: HashMap<u64, (Vec2, usize)>,
+}
 
 pub struct ReplayScene {
     game: GameScene,
@@ -55,6 +64,8 @@ pub struct ReplayScene {
     timeline_drag_target: Option<f64>,
     errors: Vec<f64>,
     selected_error: Option<usize>,
+    checkpoints: Vec<ReplayCheckpoint>,
+    checkpoint_step: f64,
     exit: bool,
 }
 
@@ -144,6 +155,14 @@ impl ReplayScene {
         // effectively the same timestamp. Navigation should visit that moment once.
         errors.dedup_by(|a, b| (*a - *b).abs() < 1e-7);
 
+        let note_count = game.chart.lines.iter().map(|line| line.notes.len()).sum::<usize>().max(1);
+        let checkpoint_count = ((16usize << 20) / note_count.saturating_mul(64)).min(32);
+        let checkpoint_step = if checkpoint_count == 0 {
+            f64::INFINITY
+        } else {
+            (game.res.track_length / checkpoint_count as f64).max(5.)
+        };
+
         Ok(Self {
             game,
             tape,
@@ -175,6 +194,8 @@ impl ReplayScene {
             timeline_drag_target: None,
             errors,
             selected_error: None,
+            checkpoints: Vec::new(),
+            checkpoint_step,
             exit: false,
         })
     }
@@ -278,15 +299,46 @@ impl ReplayScene {
             .and_then(|fraction| transport::timeline_target(fraction, 0., 1., self.game.res.track_length.max(0.)))
     }
 
+    fn checkpoint(&mut self) {
+        if !self.checkpoint_step.is_finite()
+            || self.checkpoints.last().is_some_and(|checkpoint| self.current < checkpoint.t + self.checkpoint_step)
+        {
+            return;
+        }
+        self.checkpoints.push(ReplayCheckpoint {
+            t: self.current,
+            judge_index: self.judge_index,
+            touch_index: self.touch_index,
+            judge: self.game.judge.replay_snapshot(),
+            notes: self.game.chart.lines.iter().map(|line| line.notes.iter().map(|note| note.judge.clone()).collect()).collect(),
+            touches: self.current_touches.clone(),
+        });
+    }
+
+    fn rewind_to(&mut self, target: f64) {
+        self.game.reset_replay();
+        self.judge_index = 0;
+        self.touch_index = 0;
+        self.current_touches.clear();
+        if let Some(checkpoint) = self.checkpoints.iter().rev().find(|checkpoint| checkpoint.t <= target) {
+            self.game.judge.restore_replay_snapshot(&checkpoint.judge);
+            for (line, states) in self.game.chart.lines.iter_mut().zip(&checkpoint.notes) {
+                for (note, status) in line.notes.iter_mut().zip(states) {
+                    note.judge = status.clone();
+                }
+            }
+            self.judge_index = checkpoint.judge_index;
+            self.touch_index = checkpoint.touch_index;
+            self.current_touches = checkpoint.touches.clone();
+        }
+    }
+
     fn seek_by(&mut self, delta: f64) -> Result<()> {
         let target = (self.current + delta).clamp(0., self.game.res.track_length.max(0.));
         let was_playing = self.playing;
         self.game.music.pause()?;
         if target < self.current {
-            self.game.reset_replay();
-            self.judge_index = 0;
-            self.touch_index = 0;
-            self.current_touches.clear();
+            self.rewind_to(target);
         }
         self.current = target;
         self.game.res.time = target;
@@ -431,6 +483,7 @@ impl Scene for ReplayScene {
         self.apply_events();
         self.apply_touches();
         self.game.tick_replay();
+        self.checkpoint();
         Ok(())
     }
 
