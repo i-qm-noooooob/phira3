@@ -1013,16 +1013,21 @@ impl SongScene {
                 // A retry rewinds the song clock. Discard the failed attempt so one
                 // replay file always represents exactly one completed attempt.
                 if last_time >= 0. && t + 0.5 < last_time {
-                    tape.frames.clear();
-                    tape.touches.clear();
-                    tape.judges.clear();
-                    ending_frames = 0;
+                    if last_time > res.track_length + 0.3 {
+                        // The game clock snaps back to track_length on the first ending frame.
+                        ending_frames = 1;
+                    } else {
+                        // A rewind/retry starts a fresh recording attempt.
+                        tape.frames.clear();
+                        tape.touches.clear();
+                        tape.judges.clear();
+                        ending_frames = 0;
+                    }
+                } else if ending_frames > 0 {
+                    ending_frames = ending_frames.saturating_add(1);
                 }
                 last_time = t;
-                // GameScene enters its ending state after the 0.5s post-track wait;
-                // the first 45 ending frames provide a stable, one-shot save point.
-                if t > res.track_length + 0.45 {
-                    ending_frames = ending_frames.saturating_add(1);
+                if ending_frames > 0 {
                     if ending_frames >= 45 {
                         saved = true;
                         match tape.encode().and_then(|bytes| crate::replay::library::save_recording(&bytes).map(|_| ())) {
@@ -1032,7 +1037,7 @@ impl SongScene {
                     }
                     return;
                 }
-                ending_frames = 0;
+                tape.aspect_ratio.get_or_insert(res.aspect_ratio);
                 if tape.frames.len() < crate::replay::storage::MAX_EVENTS {
                     tape.frames.push(t);
                 }
