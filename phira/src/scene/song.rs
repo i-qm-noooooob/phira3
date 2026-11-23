@@ -1015,8 +1015,9 @@ impl SongScene {
                 }
                 // A retry rewinds the song clock. Discard the failed attempt so one
                 // replay file always represents exactly one completed attempt.
-                if last_time >= 0. && t + 0.5 < last_time {
-                    if t > res.track_length * 0.8 && last_time > t + 0.3 {
+                let previous_time = last_time;
+                if previous_time >= 0. && t + 0.5 < previous_time {
+                    if t > res.track_length * 0.8 && previous_time > t + 0.3 {
                         // The game clock snaps to the chart-end position on the first ending frame.
                         ending_frames = 1;
                     } else {
@@ -1029,6 +1030,7 @@ impl SongScene {
                 } else if ending_frames > 0 {
                     ending_frames = ending_frames.saturating_add(1);
                 }
+                let advancing = previous_time < 0. || t > previous_time + 0.0001;
                 last_time = t;
                 if ending_frames > 0 {
                     if ending_frames >= 45 {
@@ -1038,6 +1040,9 @@ impl SongScene {
                             Err(err) => warn!(?err, "failed to save local gameplay replay"),
                         }
                     }
+                    return;
+                }
+                if !advancing {
                     return;
                 }
                 tape.aspect_ratio.get_or_insert(res.aspect_ratio);
