@@ -73,3 +73,18 @@ The workflow currently targets ARM64 only and packages the regular official Andr
 
 FPS overlay follow-up: the overlay now samples Macroquad's frame delta directly and flushes pending gameplay rendering before drawing the text in the UI camera, then restores the prior camera state. New configurations default `show_fps` to true; existing users can still toggle it in Chart Settings. ARM64 build run [45075165607](https://github.com/i-qm-noooooob/phira3/actions/runs/45075165607) succeeded, and the five standard source checks in run [45075165541](https://github.com/i-qm-noooooob/phira3/actions/runs/45075165541) passed. The resulting test APK SHA-256 is `a9a83704ba900d1d38d469e2eabf9c73003e02cc951ef871e278a6d4412545dc`. Device-level FPS visibility remains unverified. The background audit workflow now installs ALSA and Wayland development packages so native Linux test dependencies are available.
 
+## Replay seek optimization and chart download follow-up
+
+The replay player now maintains bounded seek checkpoints (memory budget approximately 16 MiB, capped at 32 checkpoints) containing judge state, note statuses, replay event indices, and active touch state. Backward seeks restore the nearest checkpoint and replay forward rather than always rebuilding from the beginning.
+
+The Replay Library now exposes a chart-download action for replay records that reference a server chart ID. It rejects a replay whose recorded server does not match the currently configured chart server, opens the regular chart scene for download, then refreshes the library and attempts chart/audio matching when returning. Local-chart-only replay references display an explanatory error instead of attempting a server fetch. The UI action has English and Vietnamese localization.
+
+Validation for commit `b2ca7500c67ced08808ac7bc8e183e7a42f187c9`:
+- Standard CI run [45095894579](https://github.com/i-qm-noooooob/phira3/actions/runs/45095894579): Format, Tests, Clippy Linux/macOS/iOS all passed (5/5).
+- ARM64 APK run [45095894582](https://github.com/i-qm-noooooob/phira3/actions/runs/45095894582): native library build, APK repackaging and artifact upload passed.
+- Background audit run [45095894589](https://github.com/i-qm-noooooob/phira3/actions/runs/45095894589): Rust format/tests/lint and Pro-reference inventory comparison passed (2/2).
+- Downloaded artifact ZIP SHA-256: `9e52f7d2c3eeb501e74b2711bfc4e000729b1ff2c40b661f1f820fe8253054ca`.
+- APK SHA-256: `846727c8a58b2c98f272c460a501ec99faff53bef3ffc2b7c695f4b78d97e9c9`.
+- APK archive integrity passed: 992 entries, no duplicate paths, no corrupt entries. ARM64 `libphira.so` and `libc++_shared.so` are present, uncompressed, and their data offsets are 16 KiB aligned.
+
+The download flow has passed compilation and automated source checks, but the actual chart-download interaction, replay rematching, and playback have not been exercised on a device. The APK remains a technical integration build using the official Android shell; it is not a complete Pro feature port or a device-validated release.
