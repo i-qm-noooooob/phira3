@@ -134,7 +134,7 @@ impl FlickTracker {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum JudgeStatus {
     NotJudged,
     PreJudge,
@@ -152,7 +152,7 @@ pub enum Judgement {
 }
 
 #[cfg(not(closed))]
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(crate) struct JudgeInner {
     diffs: Vec<f64>,
 
@@ -267,6 +267,10 @@ use inner::*;
 
 type Judgements = Vec<(f64, u32, u32, Result<Judgement, bool>)>;
 
+#[cfg(not(closed))]
+#[derive(Clone)]
+pub struct ReplayJudgeState(JudgeInner);
+
 #[repr(C)]
 pub struct Judge {
     // notes of each line in order
@@ -319,6 +323,17 @@ impl Judge {
             inner: JudgeInner::new(chart.lines.iter().map(|it| it.notes.iter().filter(|it| !it.fake).count() as u32).sum()),
             judgements: RefCell::new(Vec::new()),
         }
+    }
+
+    #[cfg(not(closed))]
+    pub fn replay_snapshot(&self) -> ReplayJudgeState {
+        ReplayJudgeState(self.inner.clone())
+    }
+
+    #[cfg(not(closed))]
+    pub fn restore_replay_snapshot(&mut self, state: &ReplayJudgeState) {
+        self.inner = state.0.clone();
+        self.judgements.borrow_mut().clear();
     }
 
     pub fn reset(&mut self) {
