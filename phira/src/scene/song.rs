@@ -247,8 +247,7 @@ impl Downloading {
                     self.info = chart.info.clone();
                     if let Some(local_path) = &self.local_path {
                         // update
-                        SongScene::global_update_chart_info(local_path, self.info.clone())?;                    } else {
-                        NEED_UPDATE.store(true, Ordering::Relaxed);
+                        SongScene::global_update_chart_info(local_path, self.info.clone())?;                    } else {                        NEED_UPDATE.store(true, Ordering::Relaxed);
                         self.local_path = Some(chart.local_path.clone());
                         get_data_mut().charts.push(chart);
                     }
@@ -497,7 +496,6 @@ impl SongScene {
             loading_last: 0.,
 
             rank_icons,            record,
-
             fetch_best_task,
 
             menu: Popup::new(),
@@ -747,8 +745,7 @@ impl SongScene {
                     .clone()
                     .map(|path| get_data_mut().local_records.entry(path).or_insert(None))            });
         let Some(rec) = rec else {
-            if let Some(rec) = &mut self.record {
-                rec.update(&new_rec);
+            if let Some(rec) = &mut self.record {                rec.update(&new_rec);
             } else {
                 self.record = Some(new_rec);
             }
@@ -995,10 +992,10 @@ impl SongScene {
                 }),
                 offset: get_data().config.offset,
                 speed: get_data().config.speed,
-                mods: mods.bits() as u32,                ..Default::default()
+                mods: mods.bits() as u32,
+                ..Default::default()
             };
-            let mut last_time = -1.0f64;
-            let mut ending_frames = 0u32;
+            let mut last_time = -1.0f64;            let mut ending_frames = 0u32;
             let mut saved = false;
             Some(Box::new(move |t: f64, ending: bool, res: &mut Resource, judge: &mut Judge| {
                 let frame_judgements = judge.judgements.borrow().clone();
@@ -1011,10 +1008,9 @@ impl SongScene {
                     return;
                 }
                 let previous_time = last_time;
-                // GameScene::update clamps res.time to track_length throughout
-                // State::Ending. It does not keep counting down, and the ending
-                // animation is shorter than 45 frames at 60 FPS. Detect the stable
-                // end-time plateau instead of relying on a large backwards jump.
+                // Use the explicit GameScene lifecycle flag; the callback time is already
+                // adjusted by chart and user offsets, so comparing it to track_length
+                // would miss positive offsets and could misidentify a paused clock.
                 let at_end = ending;
                 if at_end {
                     ending_frames = ending_frames.saturating_add(1);
@@ -1247,8 +1243,7 @@ impl SongScene {
         let hpad = 0.01;
         let dx = width / if is_owner { 3. } else { 2. };
         let mut r = Rect::new(hpad, ui.top * 2. - h + vpad, dx - hpad * 2., h - vpad * 2.);
-        if ui.button("cancel", r, tl!("edit-cancel")) {
-            if self.info_edit.as_ref().is_some_and(|it| it.updated) {
+        if ui.button("cancel", r, tl!("edit-cancel")) {            if self.info_edit.as_ref().is_some_and(|it| it.updated) {
                 confirm_dialog(tl!("warn"), tl!("cancel-not-saved"), self.confirm_cancel_edit.clone());
             } else {
                 self.hide_side(rt);
@@ -1497,8 +1492,7 @@ impl SongScene {
                         .size(SUBTITLE_SIZE)
                         .max_width(SUB_MAX_WIDTH)
                         .no_baseline()
-                        .measure();
-                    let h = r1.h + PAD + r2.h;
+                        .measure();                    let h = r1.h + PAD + r2.h;
                     ui.text(subtitle)
                         .pos(LEFT, (ITEM_HEIGHT + h) / 2. - r2.h)
                         .size(SUBTITLE_SIZE)
@@ -1747,8 +1741,7 @@ impl Scene for SongScene {
             Ok(error) => {
                 show_error(error.context(tl!("load-chart-failed")));
                 return Ok(());
-            }
-            Err(res) => res,
+            }            Err(res) => res,
         };
         let _res = match res.downcast::<Option<f32>>() {
             Ok(offset) => {
@@ -1997,8 +1990,7 @@ impl Scene for SongScene {
         if self.fav_btn.touch(touch) {
             self.fav_long_touch.reset();
             button_hit();
-            let data = get_data();
-            if let Some(uuid) = data.collection_uuids().iter().find(|uuid| data.collection_info(uuid).is_default) {
+            let data = get_data();            if let Some(uuid) = data.collection_uuids().iter().find(|uuid| data.collection_info(uuid).is_default) {
                 self.toggle_in(*uuid);
             }
             return Ok(true);
@@ -2247,8 +2239,7 @@ impl Scene for SongScene {
                 "exercise" => {
                     self.launch(GameMode::Exercise, false)?;
                 }
-                "offset" => {
-                    self.launch(GameMode::TweakOffset, false)?;
+                "offset" => {                    self.launch(GameMode::TweakOffset, false)?;
                 }
                 "unlock" => {
                     self.launch(GameMode::Normal, true)?;
@@ -2497,8 +2488,7 @@ impl Scene for SongScene {
             }));
         }
         if let Some(task) = &mut self.update_cksum_task {
-            if let Some(res) = task.take() {
-                match res {
+            if let Some(res) = task.take() {                match res {
                     Err(err) => {
                         show_error(err.context(tl!("upload-failed")));
                     }
@@ -2747,8 +2737,7 @@ impl Scene for SongScene {
                     }
                 }
                 self.edit_tags_task = None;
-            }
-        }
+            }        }
         if let Some(task) = &mut self.rate_task {
             if let Some(res) = task.take() {
                 match res {
@@ -2997,8 +2986,7 @@ impl Scene for SongScene {
                         SideContent::Info => {
                             self.side_info(ui, rt);
                             Ok(())
-                        }
-                        SideContent::Mods => {
+                        }                        SideContent::Mods => {
                             self.side_mods(ui, rt);
                             Ok(())
                         }
