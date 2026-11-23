@@ -183,6 +183,15 @@ fn list_in(root: &Path) -> Result<Vec<ReplayItem>> {
     Ok(items)
 }
 
+/// Persist a newly recorded replay in the same deduplicated library as imported tapes.
+pub fn save_recording(bytes: &[u8]) -> Result<ReplayItem> {
+    super::storage::ReplayTape::decode(bytes).context("Refusing to save an invalid recorded replay")?;
+    let temp = tempfile::NamedTempFile::new().context("Cannot stage recorded replay")?;
+    fs::write(temp.path(), bytes).context("Cannot stage recorded replay bytes")?;
+    let (item, _) = import(temp.path())?;
+    Ok(item)
+}
+
 /// Import one replay file. Identical content is deduplicated by SHA-256.
 pub fn import(source: &Path) -> Result<(ReplayItem, bool)> {
     import_in(source, &root()?)
