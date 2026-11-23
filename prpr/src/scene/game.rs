@@ -1476,4 +1476,3 @@ impl Scene for GameScene {
         }
     }
 }
-
