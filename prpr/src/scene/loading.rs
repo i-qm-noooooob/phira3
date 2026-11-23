@@ -22,7 +22,7 @@ const BEFORE_TIME: f32 = 1.;
 const FADE_IN_TIME: f32 = 0.6;
 
 pub type UploadFn = Arc<dyn Fn(Vec<u8>) -> Task<Result<RecordUpdateState>>>;
-pub type UpdateFn = Box<dyn FnMut(f64, &mut Resource, &mut Judge)>;
+pub type UpdateFn = Box<dyn FnMut(f64, bool, &mut Resource, &mut Judge)>;
 pub type SaveFn = Box<dyn Fn(SimpleRecord) -> Result<()>>;
 
 fn transition_time() -> Option<f32> {
@@ -198,7 +198,6 @@ impl Scene for LoadingScene {
         cam.render_target = self.target;
         set_camera(&cam);
         draw_background(*self.background);
-
         ui.alpha((t / FADE_IN_TIME).min(1.), |ui| {
             let dx = if t > self.finish_time {
                 transition_time().map_or(1., |tt| {
