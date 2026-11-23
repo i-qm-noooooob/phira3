@@ -2,7 +2,7 @@ prpr_l10n::tl_file!("settings");
 
 use super::{request_export, resolve_export, take_export, ChartItem, ExportConfig, Page, SharedState};
 use crate::replay::library::{self, ReplayItem};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use inputbox::InputBox;
 use macroquad::prelude::*;
 use prpr::{
@@ -65,6 +65,7 @@ pub struct ReplayLibraryPage {
     download_task: LocalTask<Result<crate::scene::SongScene>>,
     waiting_download: bool,
     ready_scene: Option<crate::scene::ReplayScene>,
+    ready_download_scene: Option<crate::scene::SongScene>,
     status: Option<String>,
     delete_confirm: Arc<AtomicBool>,
     delete_file: Option<String>,
@@ -102,6 +103,7 @@ impl ReplayLibraryPage {
             download_task: None,
             waiting_download: false,
             ready_scene: None,
+            ready_download_scene: None,
             status: None,
             delete_confirm: Arc::default(),
             delete_file: None,
@@ -232,7 +234,7 @@ impl Page for ReplayLibraryPage {
             match result {
                 Ok(scene) => {
                     self.waiting_download = true;
-                    self.next = Some(NextScene::Overlay(Box::new(scene)));
+                    self.ready_download_scene = Some(scene);
                 }
                 Err(err) => show_error(err.context("Cannot open online chart")),
             }
@@ -373,12 +375,12 @@ impl Page for ReplayLibraryPage {
             if self.download_task.is_none() {
                 if let Some(file) = self.selected_item().map(|item| item.file.clone()) {
                     let replay = library::load(&file)?;
-                    if let Some(crate::replay::ChartRef::Id(id)) = replay.chart {
+                    if let Some(crate::replay::storage::ReplayChartRef::Id(id)) = replay.chart {
                         if replay
                             .meta
                             .server
                             .as_ref()
-                            .is_some_and(|server| server.trim_end_matches('/') != crate::client::api_url().trim_end_matches('/'))
+                            .is_some_and(|server| server.trim_end_matches('/') != crate::client::API_URL.trim_end_matches('/'))
                         {
                             show_error(anyhow::anyhow!("Switch to the replay's chart server before downloading"));
                         } else {
@@ -440,9 +442,10 @@ impl Page for ReplayLibraryPage {
     }
 
     fn next_scene(&mut self, _s: &mut SharedState) -> NextScene {
-        self.ready_scene
+        self.ready_download_scene
             .take()
             .map(|scene| NextScene::Overlay(Box::new(scene)))
+            .or_else(|| self.ready_scene.take().map(|scene| NextScene::Overlay(Box::new(scene))))
             .unwrap_or_default()
     }
 
